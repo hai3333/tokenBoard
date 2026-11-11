@@ -1776,7 +1776,9 @@ class Panel(Window):
         hw, _ = c.measure(hint, self.f_tiny)
         hint_x = WIN_W - PAD - upd_w - sync_w - 10 - hw
         if hint_x > x + 10:
-            c.text(hint_x, yy + 1, hw, 16, hint, self.f_tiny, TEXT_3,
+            # 宽度多给 6px：DT_CALCRECT 量出来的比实际排字略窄，
+            # 按 hw 画会被 DT_END_ELLIPSIS 截掉最后一个字（"R 刷..."）。
+            c.text(hint_x, yy + 1, hw + 6, 16, hint, self.f_tiny, TEXT_3,
                    align=DT_L | DT_VC | DT_SL)
         # 右侧：更新时刻，前面加一个极小的状态灯（有错就变红）
         msg = self._footer_msg()
