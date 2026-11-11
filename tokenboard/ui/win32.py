@@ -59,6 +59,9 @@ EN_CHANGE = 0x0300
 WM_CTLCOLOREDIT = 0x0133
 WM_CTLCOLORSTATIC = 0x0132
 WM_SETFONT = 0x0030
+EM_SETMARGINS = 0x00D3      # 输入框内边距（文字不要贴边）
+EC_LEFTMARGIN = 0x0001
+EC_RIGHTMARGIN = 0x0002
 
 WM_DESTROY = 0x0002
 WM_SIZE = 0x0005
@@ -71,6 +74,7 @@ WM_NCCALCSIZE = 0x0083
 WM_NCHITTEST = 0x0084
 WM_NCPAINT = 0x0085
 WM_NCACTIVATE = 0x0086
+WM_SETTINGCHANGE = 0x001A  # 系统设置变化（主题/DPI/颜色）会广播这个消息
 WM_WINDOWPOSCHANGING = 0x0046
 WM_KEYDOWN = 0x0100
 WM_CHAR = 0x0102
@@ -464,6 +468,10 @@ def _setup_prototypes() -> None:
     user32.TrackPopupMenu.argtypes = [wintypes.HMENU, wintypes.UINT, ctypes.c_int,
                                       ctypes.c_int, ctypes.c_int, wintypes.HWND,
                                       ctypes.c_void_p]
+    user32.CheckMenuRadioItem.restype = wintypes.BOOL
+    user32.CheckMenuRadioItem.argtypes = [wintypes.HMENU, wintypes.UINT,
+                                          wintypes.UINT, wintypes.UINT,
+                                          wintypes.UINT]
     user32.DestroyMenu.argtypes = [wintypes.HMENU]
     user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
     user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
@@ -832,6 +840,9 @@ class Edit:
             # 控件里的字会比界面上其它字小一号（150% 的屏上就是 10px vs 15px）。
             user32.SendMessageW(self.hwnd, WM_SETFONT, font.create(scale), 1)
         self.set_rect(x, y, w, h)
+        # 左右各留 6px 内边距：原生 EDIT 默认文字紧贴边框，看起来像被裁掉
+        user32.SendMessageW(self.hwnd, EM_SETMARGINS,
+                            EC_LEFTMARGIN | EC_RIGHTMARGIN, 6 | (6 << 16))
 
     def client_size(self) -> tuple[int, int]:
         """客户区尺寸（物理像素）。"""
@@ -1292,6 +1303,11 @@ class Window:
             return self._edit_brush
         if msg == WM_NCACTIVATE:
             return 1
+        if msg == WM_SETTINGCHANGE:
+            # 系统主题/强调色变了（「跟随系统」时要重新取色）。
+            # lParam 指向变化项的名称，这里不区分，统一通知子类自己判断。
+            self.on_setting_change()
+            return 0
         if msg == WM_NCHITTEST:
             # 屏幕坐标 -> 客户区坐标
             x = ctypes.c_short(lparam & 0xFFFF).value
@@ -1528,6 +1544,9 @@ class Window:
     def on_taskbar_created(self):
         """Explorer 重启后重新往通知区域放回图标。"""
         pass
+
+    def on_setting_change(self):
+        """系统设置变化（主题 / 强调色 / DPI 等）。子类按需覆盖。"""
 
     def on_moved(self):
         """窗口被拖动/缩放结束。"""

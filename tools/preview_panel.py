@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""主面板截图（改版验收用）。
+"""主面板截图（改版验收用），暗色 / 亮色各一套。
 
 子进程渲染、PNG 走管道回父进程落盘（同 preview_configwin 的老办法：
 渲染进程退出时 GDI 收尾会弄坏同进程写出的 PNG）。
@@ -20,7 +20,10 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 
-def child(mode: str):
+def child(mode: str, theme: str = "dark"):
+    from tokenboard.ui import theme as theme_mod
+    theme_mod.apply(theme)
+
     from tokenboard.config import DB_PATH
     from tokenboard.scanner import Scanner
     from tokenboard.store import Store
@@ -30,10 +33,9 @@ def child(mode: str):
     store = Store(DB_PATH)
     panel = Panel(store, Scanner(store))
     panel.create()
-    panel.resize_to = None
     if mode == "app":
         panel._view_idx = 0
-        panel._expanded.add("minimax")
+        panel._expanded.add("mcode")
     elif mode == "model":
         panel._view_idx = 1
         panel._expanded.add("deepseek-v4.1-flash-1017")
@@ -71,22 +73,23 @@ def child(mode: str):
 
 def main() -> int:
     if len(sys.argv) > 2 and sys.argv[1] == "--child":
-        child(sys.argv[2])
+        child(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "dark")
         return 0
-    for mode in ("app", "model", "speed", "quota"):
-        p = subprocess.run([sys.executable, os.path.abspath(__file__),
-                            "--child", mode], capture_output=True)
-        name = f"panel_{mode}.png"
-        if p.returncode != 0:
-            print(f"  {name} 子进程失败:",
-                  p.stderr.decode("utf-8", "replace")[-900:])
-            continue
-        data = p.stdout
-        path = os.path.join(ROOT, "tools", name)
-        with open(path, "wb") as f:
-            f.write(data)
-        ok = data[:4] == b"\x89PNG"
-        print(f"  {name:<20} {len(data):>7} 字节  PNG头={'OK' if ok else 'BAD'}")
+    for theme in ("dark", "light"):
+        for mode in ("app", "model", "speed", "quota"):
+            p = subprocess.run([sys.executable, os.path.abspath(__file__),
+                                "--child", mode, theme], capture_output=True)
+            name = f"panel_{mode}_{theme}.png"
+            if p.returncode != 0:
+                print(f"  {name} 子进程失败:",
+                      p.stderr.decode("utf-8", "replace")[-900:])
+                continue
+            data = p.stdout
+            path = os.path.join(ROOT, "tools", name)
+            with open(path, "wb") as f:
+                f.write(data)
+            ok = data[:4] == b"\x89PNG"
+            print(f"  {name:<26} {len(data):>7} 字节  PNG头={'OK' if ok else 'BAD'}")
     return 0
 
 

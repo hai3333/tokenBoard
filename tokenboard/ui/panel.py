@@ -25,6 +25,7 @@ import ctypes
 import logging
 import os
 import queue
+import sys
 import threading
 import time
 from ctypes import wintypes
@@ -34,20 +35,17 @@ from ..config import APP_META, CNY_RATE, app_color, app_label
 from ..scanner import Scanner, trim_working_set
 from ..store import Store
 from .. import sync as syncmod
-from .theme import (ACCENT, ACCENT_HOVER, BASE, COST, DANGER, FONT_NUM, LATENCY,
-                    LINE, LINE_2, SIDEBAR, SPEED, SURFACE, SURFACE_2,
-                    SURFACE_3, TEXT, TEXT_2, TEXT_3, WARN, mix, tint)
+from .theme import (ACCENT, ACCENT_HOVER, BASE, CARD_LINE, CARD_TOP, CHART_BAR,
+                    CHART_TODAY, COST, DANGER, FONT_NUM, GRID, LATENCY, LINE,
+                    LINE_2, ON_ACCENT, ROW_HOVER, SHADOW, SIDEBAR, SPEED,
+                    SURFACE, SURFACE_2, SURFACE_3, TEXT, TEXT_2, TEXT_3,
+                    TRACK, WARN, mix, on_color, tint)
+from . import theme as theme_mod
 from .win32 import (HTCLIENT, HTCAPTION, Canvas, Font, Window, user32)
 
 # ---------------------------------------------------------------- 材质细节
-# 参考 Netcatty / shadcn：没有投影，层次全部靠「亮度差 + 一像素描边」，
-# 卡片平铺、圆角 12、悬停只提亮一档。
-CARD_LINE = "#2F2F2F"      # 卡片描边
-CARD_TOP = "#2A2A2A"       # 顶边高光（很淡）
-SHADOW = "#141414"         # 卡片投影（几乎看不见，只为压住边缘）
-ROW_HOVER = "#262626"      # 行悬停底色
-TRACK = "#2A2A2A"          # 进度条轨道
-GRID = "#262626"           # 图表网格线
+# 卡片色（CARD_LINE / CARD_TOP / SHADOW / ROW_HOVER / GRID / TRACK）来自
+# theme.py，明暗两套各有一份，切主题时随模块全局一起刷新。
 
 # ---------------------------------------------------------------- 基础尺寸
 WIN_W = 960            # 当前客户区尺寸（设计像素），随窗口缩放变化
@@ -359,6 +357,7 @@ class Panel(Window):
         self.sync_win = None        # 设置窗口（由 app.py 懒创建）
         self.on_sync_settings_request = None   # 主线程里真正去建窗口的回调
         self._pending_sync_win = False         # IPC 线程只置这个布尔
+        self._theme_pref = "auto"              # 外观偏好：auto / light / dark
         self.tray = None
 
         self.f_title_s = Font(11, 700)
@@ -786,6 +785,21 @@ class Panel(Window):
             return
         self.sync_now(force=False)
 
+    # ---- 外观（明 / 暗 / 跟随系统） -------------------------------------
+    def apply_theme(self, pref: str) -> None:
+        """套用主题偏好，并把窗口底色一起换掉（否则首帧会闪旧色）。"""
+        self._theme_pref = (pref or "auto").strip().lower()
+        theme_mod.apply(self._theme_pref)
+        self._bg_color = BASE
+        self.invalidate()
+
+    def on_setting_change(self) -> None:
+        """系统主题变了：只有「跟随系统」时才真的切换。"""
+        if self._theme_pref != "auto":
+            return
+        if theme_mod.resolve("auto") != theme_mod.MODE:
+            self.apply_theme("auto")
+
     # ==================================================================
     # 绘制
     # ==================================================================
@@ -983,13 +997,15 @@ class Panel(Window):
 
     # ---- 通用卡片 ------------------------------------------------------
     @staticmethod
-    def _card(c: Canvas, x, y, w, h, r=12, fill=SURFACE, border=CARD_LINE,
-              highlight=True):
+    def _card(c: Canvas, x, y, w, h, r=12, fill: str | None = None,
+              border: str | None = None, highlight=True):
         """卡片材质：平铺面 + 1px 描边 + 很淡的顶边高光（Netcatty 那种平）。
 
-        参考界面里卡片没有投影，靠亮度差和描边分层；保留一档极淡的
-        顶边高光，是为了让卡片在纯色底上仍然「浮」得起来。
+        fill/border 默认值在函数定义时求值的话，切主题后不会跟着变 ——
+        所以这里用 None 占位，每次绘制现取模块全局。
         """
+        fill = fill or SURFACE
+        border = border or CARD_LINE
         c.round_rect(x, y, w, h, r, fill=fill, stroke=border, stroke_w=1.0)
         if highlight:
             c.line(x + r, y + 1, x + w - r, y + 1, CARD_TOP, 1)
@@ -1106,7 +1122,7 @@ class Panel(Window):
             c.round_rect(x, y, w, h, 8, fill=mix(SIDEBAR, "#FFFFFF", 0.055))
         self._nav_icon(c, "settings", x + 16, y + (h - 16) / 2,
                        TEXT if hot else TEXT_3)
-        c.text(x + 42, y, w - 74, h, "同步设置", self.f_nav,
+        c.text(x + 42, y, w - 74, h, "设置", self.f_nav,
                TEXT if hot else TEXT_2, align=DT_L | DT_VC | DT_SL)
         cfg = self._sync_cfg
         if cfg is not None and getattr(cfg, "enabled", False):
@@ -1251,8 +1267,8 @@ class Panel(Window):
         text_w = w - pad * 2 - (86 if spark else 0)
 
         c.round_rect(x + pad, y + 12, 24, 24, 7,
-                     fill=mix(BASE, tone, 0.22),
-                     stroke=mix(BASE, tone, 0.38), stroke_w=1.0)
+                     fill=mix(SURFACE, tone, 0.16),
+                     stroke=mix(SURFACE, tone, 0.30), stroke_w=1.0)
         self._metric_icon(c, tile.get("icon", "token"), x + pad + 4, y + 16, tone)
         c.text(x + pad + 32, y + 12, w - pad * 2 - 32, 24, tile["label"],
                self.f_kpi_label, TEXT_2, align=DT_L | DT_VC | DT_SL)
@@ -1534,7 +1550,7 @@ class Panel(Window):
             hh = max(3.0, bh * v / mx) if v > 0 else 1.5
             is_today = i == n - 1
             # 日常柱用偏亮的蓝（太暗会跟蓝板岩底子糊在一起），今天用主强调色
-            col = ACCENT if is_today else mix(SURFACE_3, ACCENT, 0.55)
+            col = CHART_TODAY if is_today else CHART_BAR
             c.round_rect(bx, base - hh, bw, hh, 3, fill=col)
             if is_today and hh > 8:
                 # 今天的柱子顶上点一颗亮点，视线一下就找到「现在」
@@ -1566,11 +1582,10 @@ class Panel(Window):
             # 左侧品牌色图标块 —— 对应 Netcatty 列表里的 host 图标
             ty = y + (h - TILE) / 2
             hot = idx == self._hover_row
-            c.round_rect(CARD_X + 14, ty, TILE, TILE, 8,
-                         fill=mix(SURFACE, color, 0.30 if hot else 0.24),
-                         stroke=mix(SURFACE, color, 0.55), stroke_w=1.0)
+            tile_fill = mix(color, "#FFFFFF", 0.10) if hot else color
+            c.round_rect(CARD_X + 14, ty, TILE, TILE, 8, fill=tile_fill)
             c.text(CARD_X + 14, ty, TILE, TILE, row.get("glyph", "?"),
-                   self.f_tile, mix(color, "#FFFFFF", 0.78),
+                   self.f_tile, on_color(tile_fill),
                    align=DT_C | DT_VC | DT_SL)
 
             # 名称 + 展开箭头
@@ -2113,7 +2128,7 @@ class Panel(Window):
                 try:
                     cb()
                 except Exception:  # noqa: BLE001
-                    log.warning("打开同步设置窗口失败", exc_info=True)
+                    log.warning("打开设置窗口失败", exc_info=True)
         changed = False
         try:
             while True:
@@ -2155,3 +2170,6 @@ class Panel(Window):
     def on_show_requested(self):
         self.bring_to_front()
         self.invalidate()
+
+# 切主题时把颜色名刷进本模块的全局（见 theme.register 的说明）
+theme_mod.register(sys.modules[__name__])

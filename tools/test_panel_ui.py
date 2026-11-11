@@ -85,6 +85,38 @@ def main() -> int:
         else:
             check("有可点的行", False, "库里没有数据")
 
+        # ---- 主题：明 / 暗 / 跟随系统
+        from tokenboard.ui import theme as th
+        p.apply_theme("light")
+        check("切浅色：面板底色变亮", P.BASE == th.LIGHT["BASE"], P.BASE)
+        check("切浅色：文字变深", P.TEXT == th.LIGHT["TEXT"], P.TEXT)
+        check("浅色也同步到了小框模块",
+              __import__("tokenboard.ui.mini", fromlist=["x"]).BASE == th.LIGHT["BASE"])
+        p.apply_theme("dark")
+        check("切深色：面板底色变暗", P.BASE == th.DARK["BASE"], P.BASE)
+        p.apply_theme("auto")
+        sysmode = th.system_mode()
+        check("跟随系统解析正确", P.BASE == th.PALETTES[sysmode]["BASE"],
+              f"{P.BASE} vs {sysmode}")
+
+        # 模拟系统主题变化（不真的改注册表）：auto 模式应跟着切
+        real_system_mode = th.system_mode
+        try:
+            th.system_mode = lambda: "dark"
+            p.apply_theme("auto")
+            check("auto 下系统是暗色就变暗", P.BASE == th.DARK["BASE"], P.BASE)
+            th.system_mode = lambda: "light"
+            p.on_setting_change()
+            check("系统主题变化能实时跟随", P.BASE == th.LIGHT["BASE"], P.BASE)
+            # 固定模式不受系统影响
+            p.apply_theme("dark")
+            th.system_mode = lambda: "light"
+            p.on_setting_change()
+            check("固定暗色时系统变化不影响", P.BASE == th.DARK["BASE"], P.BASE)
+        finally:
+            th.system_mode = real_system_mode
+            p.apply_theme("auto")
+
         # ---- 窗口最小尺寸（改版后是 860x560）
         check("最小尺寸合理", p.min_width >= 860 and p.min_height >= 560,
               f"{p.min_width}x{p.min_height}")

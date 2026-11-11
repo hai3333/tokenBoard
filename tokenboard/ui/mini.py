@@ -2,8 +2,8 @@
 
 设计:
 * 240x80 的小卡片，置顶常驻在工作区右下角，不占任务栏。
-* **半透明**（WS_EX_LAYERED + 整体 alpha）：浮在桌面上像张贴纸，不像块实心板子。
-* 配色**全白**：图标、折线、工具圆点、文字一律纯白，不要五彩斑斓。
+* 半透明（WS_EX_LAYERED + 整体 alpha）：浮在桌面上像张贴纸，不像块实心板子。
+* 配色跟主面板走（中性炭黑 + emerald，同样支持明暗切换）。
 * 顶部一条是拖动区（按住能把小框挪走），其余地方点一下展开主面板 ——
   **两边都要**：早前把整块都设成拖动区，结果变成「只能拖不能点」，
   用户明确不要这种挂件。
@@ -15,11 +15,13 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import sys
 from ctypes import wintypes
 from datetime import datetime, timedelta
 
 from ..config import APP_META, WIDGET_STATE_PATH, app_color
 from .theme import ACCENT, BASE, LINE_2, SURFACE, TEXT, TEXT_2, TEXT_3, mix
+from . import theme as theme_mod
 from .win32 import (DT_CENTER as DT_C, DT_LEFT as DT_L, DT_RIGHT as DT_R,
                     DT_SINGLELINE, DT_SINGLELINE as DT_SL,
                     DT_VCENTER as DT_VC, HTCAPTION, HTCLIENT,
@@ -332,6 +334,16 @@ class MiniBar(Window):
             self._hover = False
             self.invalidate()
 
+    # ------------------------------------------------------------------ 外观
+    def apply_theme(self, pref: str) -> None:
+        theme_mod.apply(pref)
+        self._bg_color = BASE
+        self.invalidate()
+
+    def on_setting_change(self) -> None:
+        if theme_mod.resolve("auto") != theme_mod.MODE:
+            self.apply_theme("auto")
+
     def on_moved(self):
         """拖完：记住位置，并把它拉回工作区。
 
@@ -368,3 +380,7 @@ def fmt_mini_money(usd: float) -> str:
     if v > 0:
         return f"${v:.3f}"
     return "$0"
+
+
+theme_mod.register(sys.modules[__name__])
+

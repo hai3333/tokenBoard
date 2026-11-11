@@ -78,6 +78,11 @@ def main() -> int:
             store.set_meta("speed_backfill_v2", True)
             log.info("首次升级：已清空扫描水位，本轮将回填速度采样")
 
+        # ---- 外观：先按偏好套主题，再建窗口（否则首帧会闪默认色）
+        from .ui import theme as theme_mod
+        theme_pref = {"v": (store.get_meta("theme") or "auto").lower()}
+        theme_mod.apply(theme_pref["v"])
+
         scanner = Scanner(store)
         panel = Panel(store, scanner)
         # 打一行 DPI 信息：打包后在 150% 缩放下如果这里不是 1.5，
@@ -98,13 +103,42 @@ def main() -> int:
                 mini.show()
                 mini.set_topmost(True)
 
+        # ---- 外观切换：面板 / 小框 / 设置窗一起换，偏好写进库
+        def set_theme(pref: str):
+            pref = (pref or "auto").lower()
+            theme_pref["v"] = pref
+            try:
+                store.set_meta("theme", pref)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                panel.apply_theme(pref)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                mini.apply_theme(pref)
+            except Exception:  # noqa: BLE001
+                pass
+            w = panel.sync_win
+            if w is not None:
+                try:
+                    w.apply_theme(pref)
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                panel.tray.theme_pref = pref
+            except Exception:  # noqa: BLE001
+                pass
+            log.info("外观切换为 %s（生效 %s）", pref, theme_mod.MODE)
+
         # ---- WebDAV 云同步：设置窗口用到才建（没人点就不占内存）
         def open_sync_settings():
-            log.info("打开同步设置窗口")
+            log.info("打开设置窗口")
             w = panel.sync_win
             if w is None or not getattr(w, "hwnd", None):
                 from .ui.syncwin import SyncWindow
-                w = SyncWindow(store, on_changed=panel.reload_sync)
+                w = SyncWindow(store, on_changed=panel.reload_sync,
+                               on_theme=set_theme, theme_pref=theme_pref["v"])
                 w.create()
                 panel.sync_win = w
             w.show()
@@ -154,7 +188,9 @@ def main() -> int:
                     on_quit=quit_all,
                     on_toggle_mini=toggle_mini,
                     on_sync=sync_now,
-                    on_settings=open_sync_settings)
+                    on_settings=open_sync_settings,
+                    on_theme=set_theme,
+                    theme_pref=theme_pref["v"])
         panel.tray = tray
         panel.on_quit = quit_all
         panel.on_open_settings = open_sync_settings

@@ -29,21 +29,25 @@
 """
 from __future__ import annotations
 
+import ctypes
+import sys
 import threading
 import time
 
 from .. import sync as syncmod
 from ..sync import SyncConfig
-from .theme import (ACCENT, BASE, DANGER, LINE, LINE_2, OK, SURFACE, SURFACE_2,
-                    SURFACE_3, TEXT, TEXT_2, TEXT_3, WARN, mix)
+from .theme import (ACCENT, ACCENT_DIM, BASE, CARD_LINE, CARD_TOP, DANGER,
+                    LINE, LINE_2, OK, ON_ACCENT, SURFACE, SURFACE_2, SURFACE_3,
+                    TEXT, TEXT_2, TEXT_3, WARN, mix, on_color)
+from . import theme as theme_mod
 from .win32 import (DT_CENTER, DT_LEFT, DT_RIGHT, DT_SINGLELINE, DT_VCENTER,
-                    HTCAPTION, HTCLIENT, Font, Window)
+                    HTCAPTION, HTCLIENT, Font, Window, user32)
 
 # ---------------------------------------------------------------- 尺寸（设计像素）
 WIN_W = 880
-WIN_H = 560
+WIN_H = 660
 MIN_W = 820
-MIN_H = 520
+MIN_H = 620
 
 TITLE_H = 36
 PAD = 16
@@ -57,9 +61,9 @@ EDIT_INSET_X = 8
 ROW_STEP = 52
 BAR_H = 56
 
-CARD_LINE = "#2F2F2F"
-CARD_TOP = "#2A2A2A"
-SHADOW = "#141414"
+# 卡片色来自 theme（明暗两套各一份），切主题时随模块全局一起刷新
+
+THEME_OPTIONS = (("auto", "跟随系统"), ("light", "浅色"), ("dark", "深色"))
 
 
 def _fmt_ts(ms: int) -> str:
@@ -101,14 +105,16 @@ class SyncWindow(Window):
     edit_bg_color = "#2D2D2D"
     edit_text_color = "#F5F5F5"
 
-    def __init__(self, store, on_changed=None):
-        super().__init__("TokenBoard 云同步", WIN_W, WIN_H, x=220, y=140,
+    def __init__(self, store, on_changed=None, on_theme=None, theme_pref="auto"):
+        super().__init__("TokenBoard 设置", WIN_W, WIN_H, x=220, y=120,
                          class_name="TokenBoardSyncWindow")
         self._bg_color = BASE
         self.min_width = MIN_W
         self.min_height = MIN_H
         self.store = store
         self.on_changed = on_changed
+        self.on_theme = on_theme          # 切外观时回调（app 负责落库 + 通知面板）
+        self._theme_pref = (theme_pref or "auto").lower()
 
         self.cfg: SyncConfig = syncmod.load_config()
         self.status = ""
@@ -135,6 +141,9 @@ class SyncWindow(Window):
     # ------------------------------------------------------------------ 生命周期
     def create(self):
         super().create()
+        # 原生 EDIT 的配色必须在建控件之前按当前主题定一次
+        self.edit_bg_color = SURFACE_2
+        self.edit_text_color = TEXT
         self._relayout()
         self._create_edits()
         self.set_timer(200, 1)
@@ -157,11 +166,14 @@ class SyncWindow(Window):
         w, h = self.width, self.height
         content_w = w - PAD * 2
 
+        appear_h = CARD_PAD + HEAD_H + 8 + FIELD_H + CARD_PAD
         info_h = CARD_PAD + HEAD_H + 8 + ROW_STEP * 2 + FIELD_H + CARD_PAD
         status_h = 132
         note_h = 64
 
         y = TITLE_H + PAD
+        self._rects["card_appear"] = (PAD, y, content_w, appear_h)
+        y += appear_h + GAP
         self._rects["card_server"] = (PAD, y, content_w, info_h)
         y += info_h + GAP
         self._rects["card_status"] = (PAD, y, content_w, status_h)
@@ -175,30 +187,40 @@ class SyncWindow(Window):
         self._rects["btn_sync"] = (w - PAD - 96 - 12 - 110, bar_y + 12, 110, 28)
         self._rects["btn_save"] = (w - PAD - 96, bar_y + 12, 96, 28)
 
+        # ---- 外观：左侧标签 + 三段选择
+        ax = PAD + CARD_PAD
+        ay = TITLE_H + PAD + CARD_PAD + HEAD_H + 8
+        self._rects["lbl_theme"] = (ax, ay, 80, FIELD_H)
+        seg_x = ax + 76
+        for i, (key, _label) in enumerate(THEME_OPTIONS):
+            self._rects[f"thm_{i}"] = (seg_x + i * (86 + 6), ay, 86, FIELD_H)
+        self._rects["theme_hint"] = (w - PAD - CARD_PAD - 260, ay, 260, FIELD_H)
+
         # ---- 服务器卡内的字段网格
         fx = PAD + CARD_PAD
         fw = content_w - CARD_PAD * 2
-        fy = TITLE_H + PAD + CARD_PAD + HEAD_H + 8
+        fy = TITLE_H + PAD + appear_h + GAP + CARD_PAD + HEAD_H + 8
 
         self._rects["lbl_url"] = (fx, fy, 60, LBL_H)
         self._rects["f_url"] = (fx, fy + 15, fw - 110, FIELD_H)
         self._rects["btn_test"] = (fx + fw - 100, fy + 15, 100, FIELD_H)
 
+        # 第二行：用户名 + 远程目录 + 间隔（原来密码挤在这行，改成独占一行）
         y2 = fy + ROW_STEP
         self._rects["lbl_user"] = (fx, y2, 120, LBL_H)
         self._rects["f_user"] = (fx, y2 + 15, 240, FIELD_H)
-        self._rects["lbl_pass"] = (fx + 256, y2, 120, LBL_H)
-        self._rects["f_pass"] = (fx + 256, y2 + 15, fw - 256 - 64, FIELD_H)
-        self._rects["btn_show"] = (fx + fw - 56, y2 + 17, 56, 24)
+        self._rects["lbl_dir"] = (fx + 256, y2, 120, LBL_H)
+        self._rects["f_dir"] = (fx + 256, y2 + 15, 200, FIELD_H)
+        self._rects["lbl_interval"] = (fx + 472, y2, 120, LBL_H)
+        self._rects["f_interval"] = (fx + 472, y2 + 15, 70, FIELD_H)
+        self._rects["lbl_min"] = (fx + 548, y2 + 15, 60, FIELD_H)
 
+        # 第三行：密码独占整宽 + 显示/复制
         y3 = fy + ROW_STEP * 2
-        self._rects["lbl_dir"] = (fx, y3, 120, LBL_H)
-        self._rects["f_dir"] = (fx, y3 + 15, 200, FIELD_H)
-        self._rects["lbl_interval"] = (fx + 216, y3, 120, LBL_H)
-        self._rects["f_interval"] = (fx + 216, y3 + 15, 70, FIELD_H)
-        self._rects["lbl_min"] = (fx + 292, y3 + 15, 60, FIELD_H)
-
-        self._rects["f_note"] = (PAD + CARD_PAD, 0, 0, 0)
+        self._rects["lbl_pass"] = (fx, y3, 120, LBL_H)
+        self._rects["f_pass"] = (fx, y3 + 15, fw - 124, FIELD_H)
+        self._rects["btn_show"] = (fx + fw - 116, y3 + 17, 52, 24)
+        self._rects["btn_copy"] = (fx + fw - 58, y3 + 17, 58, 24)
 
     def _create_edits(self):
         e = self.edits
@@ -277,6 +299,7 @@ class SyncWindow(Window):
     def draw(self, c):
         c.fill(BASE)
         self._draw_title(c)
+        self._draw_appearance(c)
         self._draw_server(c)
         self._draw_status_card(c)
         self._draw_note(c)
@@ -284,9 +307,40 @@ class SyncWindow(Window):
 
     @staticmethod
     def _card(c, x, y, w, h, r=12):
-        c.round_rect(x, y + 1.5, w, h, r, fill=SHADOW)
         c.round_rect(x, y, w, h, r, fill=SURFACE, stroke=CARD_LINE, stroke_w=1.0)
         c.line(x + r, y + 1, x + w - r, y + 1, CARD_TOP, 1)
+
+    def _draw_appearance(self, c):
+        x, y, w, h = self._rects["card_appear"]
+        self._card(c, x, y, w, h)
+        self._section(c, x + CARD_PAD, y + CARD_PAD, w - CARD_PAD * 2, "外观")
+
+        r = self._rects["lbl_theme"]
+        c.text(r[0], r[1], r[2], r[3], "主题", self.f_label, TEXT_3,
+               align=DT_LEFT | DT_VCENTER | DT_SINGLELINE)
+
+        for i, (key, label) in enumerate(THEME_OPTIONS):
+            bx, by, bw, bh = self._rects[f"thm_{i}"]
+            active = self._theme_pref == key
+            hot = self._hover == f"thm_{i}"
+            if active:
+                c.round_rect(bx, by, bw, bh, 7, fill=ACCENT,
+                             stroke=mix(ACCENT, "#FFFFFF", 0.18), stroke_w=1.0)
+                c.text(bx, by, bw, bh, label, self.f_btn, ON_ACCENT,
+                       align=DT_CENTER | DT_VCENTER | DT_SINGLELINE)
+            else:
+                c.round_rect(bx, by, bw, bh, 7,
+                             fill=mix(SURFACE, "#FFFFFF", 0.06) if hot else SURFACE_2,
+                             stroke=LINE_2, stroke_w=1.0)
+                c.text(bx, by, bw, bh, label, self.f_btn,
+                       TEXT if hot else TEXT_2,
+                       align=DT_CENTER | DT_VCENTER | DT_SINGLELINE)
+
+        hint = ("跟随 Windows 应用主题自动切换"
+                if self._theme_pref == "auto" else "固定使用该外观")
+        r = self._rects["theme_hint"]
+        c.text(r[0], r[1], r[2], r[3], hint, self.f_tiny, TEXT_3,
+               align=DT_RIGHT | DT_VCENTER | DT_SINGLELINE)
 
     def _section(self, c, x, y, w, title, right=""):
         c.round_rect(x, y + 2, 2.5, 11, 1.2, fill=ACCENT)
@@ -304,27 +358,24 @@ class SyncWindow(Window):
 
     def _draw_title(self, c):
         ix, iy, isz = PAD, (TITLE_H - 20) / 2, 20
-        c.round_rect(ix, iy, isz, isz, 6, fill=mix(SURFACE_2, ACCENT, 0.16),
-                     stroke=mix(SURFACE_2, ACCENT, 0.32), stroke_w=1.0)
-        # 云 + 上传箭头，和主面板的三根柱区分开
-        c.line(ix + 5, iy + 12, ix + 15, iy + 12, "#A9B8D2", 1.4)
-        c.line(ix + 7, iy + 8, ix + 13, iy + 8, "#A9B8D2", 1.4)
-        c.polyline([(ix + 10, iy + 5), (ix + 7, iy + 8), (ix + 13, iy + 8)],
-                   ACCENT, 1.6)
+        c.round_rect(ix, iy, isz, isz, 6, fill=ACCENT)
+        # 三根白柱：和主面板/托盘同一套品牌标记
+        for i, bh in enumerate((4, 7, 10)):
+            c.round_rect(ix + 5 + i * 4, iy + 14 - bh, 3, bh, 1.5, fill=ON_ACCENT)
 
-        c.text(ix + isz + 8, 0, 240, TITLE_H, "云同步 · WebDAV", self.f_title,
+        c.text(ix + isz + 10, 0, 240, TITLE_H, "设置", self.f_title,
                TEXT, align=DT_LEFT | DT_VCENTER | DT_SINGLELINE)
-        tw, _ = c.measure("云同步 · WebDAV", self.f_title)
-        sep = ix + isz + 8 + max(90, tw + 14)
+        tw, _ = c.measure("设置", self.f_title)
+        sep = ix + isz + 10 + max(60, tw + 14)
         c.line(sep, TITLE_H / 2 - 5, sep, TITLE_H / 2 + 5, LINE_2, 1)
-        c.text(sep + 12, 0, 420, TITLE_H,
-               "多台机器合并同一份用量，只用你自己的 WebDAV",
+        c.text(sep + 12, 0, 460, TITLE_H,
+               "外观 · WebDAV 云同步",
                self.f_tiny, TEXT_3, align=DT_LEFT | DT_VCENTER | DT_SINGLELINE)
 
         r = self._rects["btn_close"]
         hot = self._hover == "btn_close"
         if hot:
-            c.fill_rect(r[0], 0, r[2], TITLE_H, "#E5484D")
+            c.fill_rect(r[0], 0, r[2], TITLE_H, DANGER)
         gcol = "#FFFFFF" if hot else TEXT_2
         cx = r[0] + r[2] / 2
         cy = TITLE_H / 2
@@ -351,6 +402,7 @@ class SyncWindow(Window):
                    align=DT_LEFT | DT_VCENTER | DT_SINGLELINE)
         self._button(c, "btn_test", "测试连接")
         self._button(c, "btn_show", "隐藏" if self._show_key else "显示")
+        self._button(c, "btn_copy", "复制")
 
     def _draw_status_card(self, c):
         x, y, w, h = self._rects["card_status"]
@@ -456,8 +508,10 @@ class SyncWindow(Window):
     def on_hover(self):
         x, y = self._mouse_x, self._mouse_y
         hot = ""
-        for key in ("btn_close", "btn_test", "btn_show", "btn_sync",
-                    "btn_save", "chk_enable", "btn_enable"):
+        keys = ["btn_close", "btn_test", "btn_show", "btn_copy", "btn_sync",
+                "btn_save", "chk_enable", "btn_enable"]
+        keys += [f"thm_{i}" for i in range(len(THEME_OPTIONS))]
+        for key in keys:
             if self._in(key, x, y):
                 hot = key
                 break
@@ -477,6 +531,14 @@ class SyncWindow(Window):
         if self._in("chk_enable", x, y) or self._in("btn_enable", x, y):
             self._enabled = not self._enabled
             self.invalidate()
+            return
+        # 外观：点了立即生效并落库，不用等「保存」
+        for i, (key, _label) in enumerate(THEME_OPTIONS):
+            if self._in(f"thm_{i}", x, y):
+                self._apply_theme_pref(key)
+                return
+        if self._in("btn_copy", x, y):
+            self._copy_password()
             return
         if self._in("btn_test", x, y):
             self._test()
@@ -569,7 +631,71 @@ class SyncWindow(Window):
         threading.Thread(target=work, daemon=True).start()
         self.invalidate()
 
+    # ------------------------------------------------------------------ 外观
+    def _apply_theme_pref(self, pref: str):
+        """点了外观选项：立即生效（同时通知 app 落库 + 主面板跟着换）。"""
+        self._theme_pref = pref
+        if self.on_theme is not None:
+            try:
+                self.on_theme(pref)
+            except Exception:  # noqa: BLE001
+                theme_mod.apply(pref)
+        else:
+            theme_mod.apply(pref)
+        self.apply_theme(pref)
+        label = dict(THEME_OPTIONS).get(pref, pref)
+        self._set_status(f"外观：{label}", "ok")
+        self._notify_changed()
+
+    def apply_theme(self, pref: str):
+        """本窗口换色：窗口底色、原生输入框配色、子控件重绘。"""
+        theme_mod.apply(pref)
+        self._bg_color = BASE
+        self.edit_bg_color = SURFACE_2
+        self.edit_text_color = TEXT
+        self._edit_brush = None      # 让 WM_CTLCOLOREDIT 重新建画刷
+        for e in self.edits.values():
+            try:
+                user32.InvalidateRect(e.hwnd, None, True)
+            except Exception:  # noqa: BLE001
+                pass
+        self.invalidate()
+
+    def on_setting_change(self):
+        """系统主题变了：只有「跟随系统」才重新解析。"""
+        if self._theme_pref != "auto":
+            return
+        if theme_mod.resolve("auto") != theme_mod.MODE:
+            self.apply_theme("auto")
+            self._notify_changed()
+
+    def _copy_password(self):
+        text = self.edits["pass"].get_text()
+        if not text:
+            self._set_status("密码是空的", "warn")
+            return
+        if _set_clipboard(text):
+            self._set_status("密码已复制到剪贴板", "ok")
+        else:
+            self._set_status("复制失败（剪贴板被占用）", "err")
+
     def on_timer(self, tid: int):
+        # 每 5 秒顺手看一眼配置文件：后台自动同步完成后，
+        # 「上次同步 / 远端条数」要能自己变，而不是停在打开窗口时的旧值。
+        self._tick = getattr(self, "_tick", 0) + 1
+        if self._tick % 25 == 0 and not self.busy:
+            try:
+                fresh = syncmod.load_config()
+            except Exception:  # noqa: BLE001
+                fresh = None
+            if fresh is not None:
+                keys = ("last_sync_at", "last_status", "last_remote_count",
+                        "last_remote_bytes", "enabled")
+                if any(getattr(fresh, k) != getattr(self.cfg, k) for k in keys):
+                    self.cfg = fresh
+                    self._enabled = bool(fresh.enabled)
+                    self.invalidate()
+
         with self._busy_lock:
             result = self._bg_result
             if result is not None:
@@ -589,3 +715,31 @@ class SyncWindow(Window):
         self.cfg = syncmod.load_config()
         self._notify_changed()
         self.invalidate()
+
+def _set_clipboard(text: str) -> bool:
+    """把文字放进剪贴板（复制密码用）。失败返回 False，不影响主流程。"""
+    try:
+        u32 = ctypes.windll.user32
+        k32 = ctypes.windll.kernel32
+        CF_UNICODETEXT = 13
+        GMEM_MOVEABLE = 0x0002
+        if not u32.OpenClipboard(0):
+            return False
+        try:
+            u32.EmptyClipboard()
+            data = (text + "\0").encode("utf-16-le")
+            h = k32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+            if not h:
+                return False
+            p = k32.GlobalLock(h)
+            ctypes.memmove(p, data, len(data))
+            k32.GlobalUnlock(h)
+            return bool(u32.SetClipboardData(CF_UNICODETEXT, h))
+        finally:
+            u32.CloseClipboard()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+# 切主题时把颜色名刷进本模块的全局
+theme_mod.register(sys.modules[__name__])

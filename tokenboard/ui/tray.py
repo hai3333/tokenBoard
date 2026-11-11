@@ -17,6 +17,10 @@ WM_QUIT_ID = 1004
 WM_MINI_ID = 1005      # 显示 / 隐藏桌面小框
 WM_SYNC_ID = 1006      # 立即同步（WebDAV）
 WM_SETTINGS_ID = 1007  # 打开同步设置
+WM_THEME_AUTO = 1010   # 外观：跟随系统
+WM_THEME_LIGHT = 1011  # 外观：浅色
+WM_THEME_DARK = 1012   # 外观：深色
+MF_POPUP = 0x00000010
 
 
 class NOTIFYICONDATAW(ctypes.Structure):
@@ -115,7 +119,8 @@ class Tray:
     """把图标挂到系统托盘；右键出菜单，左键切换面板显示。"""
 
     def __init__(self, window, on_show, on_refresh, on_quit,
-                 on_toggle_mini=None, on_sync=None, on_settings=None):
+                 on_toggle_mini=None, on_sync=None, on_settings=None,
+                 on_theme=None, theme_pref="auto"):
         self.window = window
         self.on_show = on_show
         self.on_refresh = on_refresh
@@ -123,6 +128,8 @@ class Tray:
         self.on_toggle_mini = on_toggle_mini
         self.on_sync = on_sync
         self.on_settings = on_settings
+        self.on_theme = on_theme
+        self.theme_pref = (theme_pref or "auto").lower()
         self._nid = NOTIFYICONDATAW()
         self._hicon = None
         self._added = False
@@ -190,7 +197,17 @@ class Tray:
         if self.on_sync is not None:
             user32.AppendMenuW(hmenu, 0, WM_SYNC_ID, "立即同步（WebDAV）")
         if self.on_settings is not None:
-            user32.AppendMenuW(hmenu, 0, WM_SETTINGS_ID, "WebDAV 同步设置…")
+            user32.AppendMenuW(hmenu, 0, WM_SETTINGS_ID, "设置…")
+        if self.on_theme is not None:
+            sub = user32.CreatePopupMenu()
+            user32.AppendMenuW(sub, 0, WM_THEME_AUTO, "跟随系统")
+            user32.AppendMenuW(sub, 0, WM_THEME_LIGHT, "浅色")
+            user32.AppendMenuW(sub, 0, WM_THEME_DARK, "深色")
+            cur = {"auto": WM_THEME_AUTO, "light": WM_THEME_LIGHT,
+                   "dark": WM_THEME_DARK}.get(self.theme_pref, WM_THEME_AUTO)
+            # 单选打勾：三段 id 连续，方便 CheckMenuRadioItem 一次标好
+            user32.CheckMenuRadioItem(sub, WM_THEME_AUTO, WM_THEME_DARK, cur, 0)
+            user32.AppendMenuW(hmenu, MF_POPUP, sub, "外观")
         if self.on_toggle_mini is not None:
             user32.AppendMenuW(hmenu, 0, WM_MINI_ID, "显示 / 隐藏桌面小框")
         user32.AppendMenuW(hmenu, 0, 0x0800, "")     # MF_SEPARATOR
@@ -212,6 +229,12 @@ class Tray:
             self.on_sync()
         elif cmd == WM_SETTINGS_ID and self.on_settings is not None:
             self.on_settings()
+        elif cmd in (WM_THEME_AUTO, WM_THEME_LIGHT, WM_THEME_DARK) \
+                and self.on_theme is not None:
+            pref = {WM_THEME_AUTO: "auto", WM_THEME_LIGHT: "light",
+                    WM_THEME_DARK: "dark"}[cmd]
+            self.theme_pref = pref
+            self.on_theme(pref)
         elif cmd == WM_MINI_ID and self.on_toggle_mini is not None:
             self.on_toggle_mini()
         elif cmd == WM_QUIT_ID:
