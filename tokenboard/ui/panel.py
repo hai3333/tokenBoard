@@ -83,8 +83,8 @@ TILE = 30              # 左侧品牌色图标块
 NAME_W = 190
 
 # 右侧四个数值列（从右往左排）
-COL_W = (72, 76, 64, 68)     # token / 成本 / 首字 / 速度
-COL_GAP = 12
+COL_W = (132, 76, 64, 68)    # token / 成本 / 首字 / 速度（token 列两行：合计 + 输入/输出/缓存）
+COL_GAP = 10
 
 # 自绘标题栏按钮
 TB_BTN_W = 40
@@ -273,6 +273,11 @@ def fmt_ms(ms: float) -> str:
 def fmt_tps(v: float) -> str:
     v = float(v or 0)
     return f"{v:.0f}" if v > 0 else "—"
+
+
+def fmt_io(inp: float, out: float, cache: float) -> str:
+    """一行放得下的「输入 / 输出 / 缓存」拆分。"""
+    return (f"入 {fmt_tokens(inp)} · 出 {fmt_tokens(out)} · 缓 {fmt_tokens(cache)}")
 
 
 def fmt_until(ms: int) -> str:
@@ -516,6 +521,8 @@ class Panel(Window):
                 "name": APP_META[app].get("short", app_label(app)),
                 "sub": sub, "color": app_color(app), "open": open_,
                 "glyph": APP_META[app].get("icon", app[:2].upper()),
+                "detail": fmt_io(r["input_tokens"], r["output_tokens"],
+                                 r["cache_read_tokens"]),
                 "bar": tokens / max_t,
                 "cells": [
                     self._cell(fmt_tokens(tokens), True),
@@ -532,6 +539,8 @@ class Panel(Window):
                 self._rows.append({
                     "kind": "sub", "key": app, "name": m["name"],
                     "color": app_color(app),
+                    "detail": fmt_io(m.get("input"), m.get("output"),
+                                     m.get("cache")),
                     "bar": (m["tokens"] or 0) / max_t,
                     "cells": [
                         self._cell(fmt_tokens(m["tokens"]), True),
@@ -562,6 +571,8 @@ class Panel(Window):
                 "kind": "model", "key": key, "name": m["name"],
                 "sub": sub, "color": app_color(m["app"]), "open": open_,
                 "glyph": (m["name"] or key)[:2].upper(),
+                "detail": fmt_io(m["input_tokens"], m["output_tokens"],
+                                 m["cache_read_tokens"]),
                 "bar": (m["total_tokens"] or 0) / max_t,
                 "cells": [
                     self._cell(fmt_tokens(m["total_tokens"]), True),
@@ -578,6 +589,8 @@ class Panel(Window):
                 self._rows.append({
                     "kind": "sub", "key": key, "name": app_label(a["app"]),
                     "color": app_color(a["app"]),
+                    "detail": fmt_io(a.get("input"), a.get("output"),
+                                     a.get("cache")),
                     "bar": (a["tokens"] or 0) / max_t,
                     "cells": [
                         self._cell(fmt_tokens(a["tokens"]), True),
@@ -1463,8 +1476,16 @@ class Panel(Window):
         # （只数主行，展开出来的模型子行不算）
         unit = "个工具" if self._view_idx == 0 else "个模型"
         n_main = sum(1 for r in self._rows if r["kind"] in ("app", "model", "srow"))
-        c.text(NAME_X, y + 5, 200, 16, f"合计 · {n_main} {unit}",
+        label = f"合计 · {n_main} {unit}"
+        lw, _ = c.measure(label, self.f_meta)
+        c.text(NAME_X, y + 5, 200, 16, label,
                self.f_meta, TEXT_3, align=DT_L | DT_VC | DT_SL)
+        # 合计行也带上输入/输出/缓存的拆分，和每行的口径保持一致
+        detail = fmt_io(t.get("input"), t.get("output"), t.get("cache"))
+        dx = NAME_X + lw + 12
+        if BAR_END - dx > 110:
+            c.text(dx, y + 5, BAR_END - dx - 6, 15, detail,
+                   self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
 
         if self._view_idx == 2:      # 速度视图：首字 / tok/s / 输出 / 样本
             cells = [
@@ -1611,12 +1632,25 @@ class Panel(Window):
                       mix(SURFACE, color, 0.35))
             c.text(NAME_X, y + 4, NAME_W, 16, row["name"], self.f_small,
                    TEXT_2, align=DT_L | DT_VC | DT_SL)
+            # 子行只有一行高：输入/输出/缓存接在名字后面，灰色小字
+            if row.get("detail"):
+                nw, _ = c.measure(row["name"], self.f_small)
+                dx = NAME_X + nw + 10
+                avail = BAR_END - dx - 6
+                if avail > 90:
+                    c.text(dx, y + 4, avail, 16, row["detail"], self.f_tiny,
+                           TEXT_3, align=DT_L | DT_VC | DT_SL)
             cy, chh = y + 4, 16
             font = self.f_cell_s
 
         for i, (text, col) in enumerate(row["cells"]):
             c.text(COL_X[i], cy, COL_W[i], chh, text, font, col,
                    align=DT_R | DT_VC | DT_SL)
+            # 主行的第一列（TOKEN）下面再挂一行输入/输出/缓存拆分
+            if i == 0 and main and row.get("detail"):
+                c.text(COL_X[i], y + 24, COL_W[i], 13,
+                       row["detail"], self.f_tiny, TEXT_3,
+                       align=DT_R | DT_VC | DT_SL)
 
     # ---- 订阅额度 ----------------------------------------------------
     def _quota_blocks(self) -> list[tuple[dict, float]]:

@@ -415,9 +415,13 @@ class Store:
                          limit: int = 50) -> list[dict]:
         sql = [
             "SELECT app, model,",
-            "  COUNT(*)          AS requests,",
-            "  SUM(total_tokens) AS total_tokens,",
-            "  SUM(cost_usd)     AS cost_usd",
+            "  COUNT(*)               AS requests,",
+            "  SUM(total_tokens)      AS total_tokens,",
+            "  SUM(input_tokens)      AS input_tokens,",
+            "  SUM(output_tokens)     AS output_tokens,",
+            "  SUM(cache_read_tokens) AS cache_read_tokens,",
+            "  SUM(cache_write_tokens)AS cache_write_tokens,",
+            "  SUM(cost_usd)          AS cost_usd",
             "FROM usage_events WHERE total_tokens > 0",
         ]
         params: list = []
@@ -433,7 +437,7 @@ class Store:
             return [dict(r) for r in self.conn.execute(" ".join(sql), params)]
 
     def models_by_app(self, since_day: str | None = None) -> dict[str, list[dict]]:
-        """app -> 该应用下各模型的用量（同名模型已合并）。"""
+        """app -> 该应用下各模型的用量（同名模型已合并，带输入/输出/缓存拆分）。"""
         rows = self.summary_by_model(since_day=since_day, limit=100000)
         out: dict[str, dict[str, dict]] = {}
         for r in rows:
@@ -442,11 +446,16 @@ class Store:
             g = out.setdefault(app, {}).setdefault(key, {
                 "key": key,
                 "name": model_display(r["model"]),
-                "tokens": 0, "requests": 0, "cost": 0.0, "models": set(),
+                "tokens": 0, "requests": 0, "cost": 0.0,
+                "input": 0, "output": 0, "cache": 0,
+                "models": set(),
             })
             g["tokens"] += r["total_tokens"] or 0
             g["requests"] += r["requests"] or 0
             g["cost"] += r["cost_usd"] or 0.0
+            g["input"] += r["input_tokens"] or 0
+            g["output"] += r["output_tokens"] or 0
+            g["cache"] += r["cache_read_tokens"] or 0
             g["models"].add(r["model"])
         result: dict[str, list[dict]] = {}
         for app, groups in out.items():
@@ -456,6 +465,9 @@ class Store:
                 "tokens": g["tokens"],
                 "requests": g["requests"],
                 "cost": g["cost"],
+                "input": g["input"],
+                "output": g["output"],
+                "cache": g["cache"],
                 "aliases": len(g["models"]),
             } for g in groups.values()]
             lst.sort(key=lambda x: -x["tokens"])
@@ -473,10 +485,14 @@ class Store:
                 "app": app,
                 "name": model_display(r["model"]),
                 "tokens": 0, "requests": 0, "cost": 0.0,
+                "input": 0, "output": 0, "cache": 0,
             })
             g["tokens"] += r["total_tokens"] or 0
             g["requests"] += r["requests"] or 0
             g["cost"] += r["cost_usd"] or 0.0
+            g["input"] += r["input_tokens"] or 0
+            g["output"] += r["output_tokens"] or 0
+            g["cache"] += r["cache_read_tokens"] or 0
         result: dict[str, list[dict]] = {}
         for key, groups in out.items():
             lst = list(groups.values())
