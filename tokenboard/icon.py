@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import math
 
-BLUE = (0, 122, 255)
+# 品牌色：和界面强调色 #0FB77F 一致（原来是 iOS 蓝，改版后统一成 emerald）
+BLUE = (15, 183, 127)
 WHITE = (255, 255, 255)
 
 

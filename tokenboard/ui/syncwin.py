@@ -57,9 +57,9 @@ EDIT_INSET_X = 8
 ROW_STEP = 52
 BAR_H = 56
 
-CARD_LINE = "#28374F"
-CARD_TOP = "#243149"
-SHADOW = "#070B13"
+CARD_LINE = "#2F2F2F"
+CARD_TOP = "#2A2A2A"
+SHADOW = "#141414"
 
 
 def _fmt_ts(ms: int) -> str:
@@ -96,6 +96,10 @@ def _fmt_size(n: int) -> str:
 
 class SyncWindow(Window):
     """WebDAV 同步设置。"""
+
+    # 原生 EDIT 的深色配色（和输入框底色 SURFACE_2 对齐）
+    edit_bg_color = "#2D2D2D"
+    edit_text_color = "#F5F5F5"
 
     def __init__(self, store, on_changed=None):
         super().__init__("TokenBoard 云同步", WIN_W, WIN_H, x=220, y=140,
@@ -415,8 +419,8 @@ class SyncWindow(Window):
                      stroke=mix(SURFACE_2, ACCENT, 0.6) if on else LINE_2,
                      stroke_w=1.0)
         if on:
-            c.line(r[0] + 4, r[1] + 9, r[0] + 7.5, r[1] + 12.5, "#0C1220", 2)
-            c.line(r[0] + 7.5, r[1] + 12.5, r[0] + 13.5, r[1] + 5.5, "#0C1220", 2)
+            c.line(r[0] + 4, r[1] + 9, r[0] + 7.5, r[1] + 12.5, "#06231A", 2)
+            c.line(r[0] + 7.5, r[1] + 12.5, r[0] + 13.5, r[1] + 5.5, "#06231A", 2)
         c.text(r[0] + r[2] + 8, bar_y + 12, 200, 26, "启用云同步", self.f_value,
                TEXT if hot else TEXT_2, align=DT_LEFT | DT_VCENTER | DT_SINGLELINE)
 
@@ -431,7 +435,7 @@ class SyncWindow(Window):
         hot = self._hover == key
         if primary:
             fill = mix(ACCENT, "#FFFFFF", 0.18) if hot else ACCENT
-            fg = "#0C1220"
+            fg = "#06231A"
             stroke = None
         else:
             fill = SURFACE_3 if hot else SURFACE_2

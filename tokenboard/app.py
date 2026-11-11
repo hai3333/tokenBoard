@@ -157,6 +157,7 @@ def main() -> int:
                     on_settings=open_sync_settings)
         panel.tray = tray
         panel.on_quit = quit_all
+        panel.on_open_settings = open_sync_settings
 
         panel.start()
         if tray.start():

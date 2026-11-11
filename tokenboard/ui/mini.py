@@ -18,8 +18,8 @@ import os
 from ctypes import wintypes
 from datetime import datetime, timedelta
 
-from ..config import APP_META, WIDGET_STATE_PATH
-from .theme import BASE, SURFACE, SURFACE_2, mix
+from ..config import APP_META, WIDGET_STATE_PATH, app_color
+from .theme import ACCENT, BASE, LINE_2, SURFACE, TEXT, TEXT_2, TEXT_3, mix
 from .win32 import (DT_CENTER as DT_C, DT_LEFT as DT_L, DT_RIGHT as DT_R,
                     DT_SINGLELINE, DT_SINGLELINE as DT_SL,
                     DT_VCENTER as DT_VC, HTCAPTION, HTCLIENT,
@@ -223,58 +223,58 @@ class MiniBar(Window):
             self._write_state()
 
     # ------------------------------------------------------------------
-    # 绘制（配色全白）
+    # 绘制（中性炭黑 + emerald，和主面板同一套）
     def draw(self, c: Canvas):
         c.fill(BASE)
-        card = SURFACE if not self._hover else mix(SURFACE, WHITE, 0.10)
+        card = SURFACE if not self._hover else mix(SURFACE, "#FFFFFF", 0.06)
         c.round_rect(0, 0, MINI_W, MINI_H, 10, fill=card,
-                     stroke=WHITE, stroke_w=1.0)
+                     stroke=LINE_2, stroke_w=1.0)
 
-        # 品牌标记：三根递增的柱（纯白，和主面板同一套形状）
+        # 品牌标记：三根递增的柱（emerald，和托盘图标同一套形状）
         for i, bh in enumerate((5, 8, 12)):
-            c.round_rect(PAD + i * 5, 18 - bh, 3, bh, 1.5, fill=WHITE)
-        c.text(PAD + 20, 6, 120, 16, "TokenBoard", self.f_brand, WHITE,
+            c.round_rect(PAD + i * 5, 18 - bh, 3, bh, 1.5, fill=ACCENT)
+        c.text(PAD + 20, 6, 120, 16, "TokenBoard", self.f_brand, TEXT,
                align=DT_L | DT_VC | DT_SL)
 
         # 今天总量（右对齐，大号数字）
         c.text(MINI_W - PAD - 140, 2, 140, 24, fmt_compact(self._total),
-               self.f_num, WHITE, align=DT_R | DT_VC | DT_SL)
+               self.f_num, TEXT, align=DT_R | DT_VC | DT_SL)
 
         # 今天 · N 次请求 · 成本；悬停时换成今天 top3 工具速览
         if self._hover and self._top3:
             tx = PAD
             for app, tk in self._top3:
-                c.ellipse(tx, 30, 5, 5, fill=WHITE)
+                c.ellipse(tx, 30, 5, 5, fill=app_color(app))
                 icon = APP_META.get(app, {}).get("icon", "?")
                 txt = f"{icon} {fmt_compact(tk)}"
                 tw, _ = c.measure(txt, self.f_tiny)
-                c.text(tx + 8, 24, tw + 2, 14, txt, self.f_tiny, WHITE,
+                c.text(tx + 8, 24, tw + 2, 14, txt, self.f_tiny, TEXT_2,
                        align=DT_L | DT_VC | DT_SL)
                 tx += 8 + tw + 12
         else:
             money = fmt_mini_money(self._cost)
             c.text(PAD, 24, MINI_W - PAD * 2 - 14, 14,
-                   f"今天 · {self._reqs:,} 次 · {money}", self.f_meta, WHITE,
+                   f"今天 · {self._reqs:,} 次 · {money}", self.f_meta, TEXT_3,
                    align=DT_L | DT_VC | DT_SL)
 
-        # 近 30 天迷你趋势（白色）
+        # 近 30 天迷你趋势（emerald）
         self._draw_spark(c, PAD, 42, MINI_W - PAD * 2, 18)
 
-        # 工具圆点（纯白）
+        # 工具圆点：用各家的品牌色，和列表图标块同一套识别色
         for i, app in enumerate(self._apps[:8]):
             cx = PAD + i * DOT_GAP
-            c.ellipse(cx, MINI_H - 14, DOT_R * 2, DOT_R * 2, fill=WHITE)
+            c.ellipse(cx, MINI_H - 14, DOT_R * 2, DOT_R * 2, fill=app_color(app))
 
         # 右侧小箭头：提示「点一下能展开主面板」
         cx = MINI_W - PAD - 6
         cy = 31
         c.polyline([(cx - 3, cy - 4), (cx + 1, cy), (cx - 3, cy + 4)],
-                   WHITE, 1.2)
+                   TEXT_3, 1.2)
 
     def _draw_spark(self, c: Canvas, x, y, w, h):
         vals = self._spark
         if not vals or max(vals) <= 0:
-            c.text(x, y, w, h, "暂无数据", self.f_meta, WHITE,
+            c.text(x, y, w, h, "暂无数据", self.f_meta, TEXT_3,
                    align=DT_C | DT_VC | DT_SL)
             return
         n = len(vals)
@@ -295,9 +295,9 @@ class MiniBar(Window):
                 break
             t = row / span
             c.fill_rect(min(xs), yb, max(1.0, max(xs) - min(xs)), 1,
-                        mix(SURFACE_2, WHITE, 0.26 * (1 - t) ** 1.5))
-        c.polyline(pts, WHITE, 1.4)
-        c.ellipse(pts[-1][0] - 2, pts[-1][1] - 2, 4, 4, WHITE)
+                        mix(SURFACE, ACCENT, 0.30 * (1 - t) ** 1.5))
+        c.polyline(pts, ACCENT, 1.4)
+        c.ellipse(pts[-1][0] - 2, pts[-1][1] - 2, 4, 4, ACCENT)
 
     # ------------------------------------------------------------------
     # 交互：顶部一条拖动区，其余点击展开主面板

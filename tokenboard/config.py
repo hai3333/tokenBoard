@@ -65,11 +65,12 @@ def app_label(app: str) -> str:
 
 
 def app_color(app: str) -> str:
-    """工具在界面里的识别色。
+    """工具的识别色：列表左侧那个图标块用它。
 
-    需求是「整体白色」，所以这里统一返回纯白；APP_META 里的品牌色只作参考。
+    配色走 Netcatty 那套逻辑 —— 颜色是「身份标识」而不是装饰：
+    每个工具一个品牌色小块，界面其余部分保持中性炭黑。
     """
-    return "#FFFFFF"
+    return APP_META.get(app, {}).get("color", "#8F8C93")
 
 
 def ensure_dirs() -> None:

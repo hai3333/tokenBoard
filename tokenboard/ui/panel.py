@@ -34,54 +34,59 @@ from ..config import APP_META, CNY_RATE, app_color, app_label
 from ..scanner import Scanner, trim_working_set
 from ..store import Store
 from .. import sync as syncmod
-from .theme import (ACCENT, BASE, COST, DANGER, FONT_NUM, LATENCY, LINE, LINE_2,
-                    SPEED, SURFACE, SURFACE_2, SURFACE_3, TEXT, TEXT_2,
-                    TEXT_3, WARN, mix, tint)
+from .theme import (ACCENT, ACCENT_HOVER, BASE, COST, DANGER, FONT_NUM, LATENCY,
+                    LINE, LINE_2, SIDEBAR, SPEED, SURFACE, SURFACE_2,
+                    SURFACE_3, TEXT, TEXT_2, TEXT_3, WARN, mix, tint)
 from .win32 import (HTCLIENT, HTCAPTION, Canvas, Font, Window, user32)
 
 # ---------------------------------------------------------------- 材质细节
-# 深色界面没有投影和 alpha，层次只能靠「一像素」堆出来：
-# 卡片 = 投影 + 面 + 1px 描边 + 顶边高光；列表 = 分隔线 + 悬停整行底色。
-CARD_LINE = "#28374F"      # 卡片描边（蓝一档，勾出边界但不死板）
-CARD_TOP = "#243149"       # 卡片顶边高光（模拟受光）
-SHADOW = "#070B13"         # 卡片投影（比底色深）
-ROW_HOVER = "#1B2739"      # 行悬停底色
-TRACK = "#1B2434"          # 进度条轨道（中性兜底，行内会按品牌色再染一次）
-GRID = "#1C2536"           # 图表网格线
+# 参考 Netcatty / shadcn：没有投影，层次全部靠「亮度差 + 一像素描边」，
+# 卡片平铺、圆角 12、悬停只提亮一档。
+CARD_LINE = "#2F2F2F"      # 卡片描边
+CARD_TOP = "#2A2A2A"       # 顶边高光（很淡）
+SHADOW = "#141414"         # 卡片投影（几乎看不见，只为压住边缘）
+ROW_HOVER = "#262626"      # 行悬停底色
+TRACK = "#2A2A2A"          # 进度条轨道
+GRID = "#262626"           # 图表网格线
 
 # ---------------------------------------------------------------- 基础尺寸
-WIN_W = 880            # 当前客户区尺寸（设计像素），随窗口缩放变化
-WIN_H = 520
-TITLE_H = 32           # 自绘标题栏高度（系统标题栏已去掉）
+WIN_W = 960            # 当前客户区尺寸（设计像素），随窗口缩放变化
+WIN_H = 600
+TITLE_H = 40           # 自绘标题栏高度（系统标题栏已去掉）
 
-PAD = 16
-HEAD_H = 44            # 顶部控件条
-SEG_H = 24
-SEG_Y = TITLE_H + 10
-VIEW_SEG_W = 58
-PERIOD_SEG_W = 52
+SIDEBAR_W = 176        # 左侧导航栏宽度
+PAD = 16               # 内容区左右留白
 
-KPI_Y = TITLE_H + HEAD_H + 14       # 90
-KPI_H = 88
-KPI_GAP = 10
+NAV_X = 10             # 导航项内缩
+NAV_W = SIDEBAR_W - NAV_X * 2
+NAV_H = 36
+NAV_GAP = 2
+NAV_TOP = TITLE_H + 18
 
-COL_HEAD_Y = KPI_Y + KPI_H + 12     # 190
+TOOLBAR_Y = TITLE_H + 14
+TOOLBAR_H = 34
+BTN_W = 76
+
+KPI_Y = TOOLBAR_Y + TOOLBAR_H + 14
+KPI_H = 92
+KPI_GAP = 12
+
+COL_HEAD_Y = KPI_Y + KPI_H + 14
 COL_HEAD_H = 16
-BODY_Y = COL_HEAD_Y + COL_HEAD_H + 4   # 210
+BODY_Y = COL_HEAD_Y + COL_HEAD_H + 6
 
-FOOT_H = 34
+FOOT_H = 32
 FOOT_Y = WIN_H - FOOT_H
 
 # ---------------------------------------------------------------- 行尺寸
-ROW_MAIN = 44          # 工具行 / 模型行（名称 + 副标题两行）
+ROW_MAIN = 46          # 工具行 / 模型行（图标块 + 名称 + 副标题）
 ROW_SUB = 26           # 展开后的子行
-
-TICK_W = 3
-NAME_W = 168
+TILE = 30              # 左侧品牌色图标块
+NAME_W = 190
 
 # 右侧四个数值列（从右往左排）
-COL_W = (66, 74, 62, 66)     # token / 成本 / 首字 / 速度
-COL_GAP = 10
+COL_W = (72, 76, 64, 68)     # token / 成本 / 首字 / 速度
+COL_GAP = 12
 
 # 自绘标题栏按钮
 TB_BTN_W = 40
@@ -90,11 +95,10 @@ TB_BTN_H = TITLE_H
 # 订阅额度视图
 QUOTA_GAP = 10
 QUOTA_STEP = 40
-# 额度环也走白色系（原来是按 provider 分品牌色），层次交给「已用比例」本身
 QUOTA_COLOR = {
-    "minimax": "#FFFFFF",
-    "codex": "#FFFFFF",
-    "volcengine": "#FFFFFF",
+    "minimax": "#0FB77F",
+    "codex": "#6AA9FF",
+    "volcengine": "#F0A93B",
 }
 
 # ---------------------------------------------------------------- 派生布局
@@ -104,7 +108,15 @@ BODY_H = 270
 COL_X = [0, 0, 0, 0]
 KPI_X = [0, 0, 0, 0]
 KPI_W = [0, 0, 0, 0]
-PERIOD_SEG_X = 0
+CONTENT_X = 0
+CONTENT_W = 0
+CARD_X = 0
+CARD_W = 0
+SEARCH_X = 0
+SEARCH_W = 0
+PERIOD_X = 0
+BTN_REFRESH_X = 0
+BTN_SYNC_X = 0
 BAR_X = 0
 BAR_W = 0
 NAME_X = 0
@@ -116,21 +128,31 @@ QUOTA_H = 0
 TB_MIN_X = 0
 TB_CLOSE_X = 0
 
+PERIOD_W = 52
+
 
 def _relayout(w: float, h: float) -> None:
     """窗口尺寸变了就重算所有派生布局常量（单位：设计像素）。"""
-    global WIN_W, WIN_H, BODY_H, FOOT_Y, COL_X, KPI_X, KPI_W, PERIOD_SEG_X, \
-        BAR_X, BAR_W, NAME_X, BAR_END, SCROLL_X, QUOTA_W, QUOTA_Y, QUOTA_H, \
-        TB_MIN_X, TB_CLOSE_X
+    global WIN_W, WIN_H, BODY_H, FOOT_Y, COL_X, KPI_X, KPI_W, CONTENT_X, \
+        CONTENT_W, CARD_X, CARD_W, SEARCH_X, SEARCH_W, PERIOD_X, \
+        BTN_REFRESH_X, BTN_SYNC_X, BAR_X, BAR_W, NAME_X, BAR_END, SCROLL_X, \
+        QUOTA_W, QUOTA_Y, QUOTA_H, TB_MIN_X, TB_CLOSE_X
 
     WIN_W = w
     WIN_H = h
     FOOT_Y = h - FOOT_H
-    BODY_H = max(80, FOOT_Y - 8 - BODY_Y)
 
-    # 额度视图没有指标卡，卡片直接从控件条下面开始，别在顶上留一块空洞
-    QUOTA_Y = TITLE_H + HEAD_H + 12
-    QUOTA_H = max(80, FOOT_Y - 10 - QUOTA_Y)
+    CONTENT_X = SIDEBAR_W + 16
+    CONTENT_W = max(320, w - CONTENT_X - PAD)
+    CARD_X = CONTENT_X - 8
+    CARD_W = CONTENT_W + 16
+
+    BODY_H = max(80, FOOT_Y - 10 - BODY_Y)
+
+    # 额度视图没有指标卡，卡片直接从工具栏下面开始
+    QUOTA_Y = TOOLBAR_Y + TOOLBAR_H + 14
+    QUOTA_H = max(80, FOOT_Y - 12 - QUOTA_Y)
+    QUOTA_W = CONTENT_W
 
     # 数值列：右对齐，从右边缘往回排
     right = w - PAD
@@ -141,25 +163,29 @@ def _relayout(w: float, h: float) -> None:
         col_x[i] = x
         x -= COL_GAP
     COL_X = col_x
-    BAR_END = COL_X[0] - 12
+    BAR_END = COL_X[0] - 14
 
-    NAME_X = PAD + 28
-    BAR_X = NAME_X + NAME_W + 10
+    NAME_X = CONTENT_X + 16 + TILE + 12
+    BAR_X = NAME_X + NAME_W + 12
     BAR_W = max(48, BAR_END - BAR_X)
-    SCROLL_X = w - PAD + 2
+    SCROLL_X = w - PAD + 3
 
     # 指标卡：总消耗占大头（里面有趋势线），其余三等分
-    total = w - PAD * 2 - KPI_GAP * 3
-    w0 = max(200.0, total * 0.36)
+    total = CONTENT_W - KPI_GAP * 3
+    w0 = max(220.0, total * 0.34)
     rest = (total - w0) / 3
-    KPI_X[0] = PAD
+    KPI_X[0] = CONTENT_X
     KPI_W[0] = w0
     for i in range(1, 4):
         KPI_X[i] = KPI_X[i - 1] + KPI_W[i - 1] + KPI_GAP
         KPI_W[i] = rest
 
-    PERIOD_SEG_X = w - PAD - PERIOD_SEG_W * 4
-    QUOTA_W = w - PAD * 2 - 12
+    # 工具栏：搜索框 + 时间范围 + 右侧两个按钮
+    SEARCH_X = CONTENT_X
+    SEARCH_W = max(196.0, min(280.0, CONTENT_W * 0.34))
+    PERIOD_X = SEARCH_X + SEARCH_W + 12
+    BTN_REFRESH_X = w - PAD - BTN_W
+    BTN_SYNC_X = BTN_REFRESH_X - 10 - BTN_W
 
     TB_MIN_X = w - TB_BTN_W * 2
     TB_CLOSE_X = w - TB_BTN_W
@@ -276,8 +302,13 @@ class Panel(Window):
         self._bg_color = BASE
         self.store = store
         self.scanner = scanner
-        self.min_width = 720
-        self.min_height = 460
+        self.min_width = 860
+        self.min_height = 560
+        self._hover_nav = -1
+        self._hover_btn = ""
+        self._hover_period = -1
+        self._hover_settings = False
+        self.on_open_settings = None      # 侧栏「同步设置」点击回调（app.py 注入）
 
         self._period_idx = 0
         # 启动时默认选某个时间范围（TOKENBOARD_PERIOD=all|7|30|today）
@@ -330,17 +361,22 @@ class Panel(Window):
         self._pending_sync_win = False         # IPC 线程只置这个布尔
         self.tray = None
 
-        self.f_title_s = Font(10, 700)
-        self.f_seg = Font(10, 400)
-        self.f_seg_sel = Font(10, 700)
+        self.f_title_s = Font(11, 700)
+        self.f_nav = Font(10, 400)
+        self.f_nav_sel = Font(10, 700)
+        self.f_seg = Font(9, 400)
+        self.f_seg_sel = Font(9, 700)
+        self.f_btn = Font(9, 700)
+        self.f_search = Font(9, 400)
         self.f_kpi_label = Font(9, 400)
-        self.f_kpi = Font(24, 700, FONT_NUM)
-        self.f_kpi_m = Font(20, 700, FONT_NUM)
-        self.f_kpi_unit = Font(10, 400, FONT_NUM)
+        self.f_kpi = Font(23, 700, FONT_NUM)
+        self.f_kpi_m = Font(19, 700, FONT_NUM)
+        self.f_kpi_unit = Font(9, 400, FONT_NUM)
         self.f_kpi_sub = Font(8, 400)
         self.f_head = Font(8, 400)
         self.f_name = Font(11, 700)
         self.f_name_sub = Font(8, 400)
+        self.f_tile = Font(8, 700, FONT_NUM)
         self.f_cell = Font(10, 700, FONT_NUM)
         self.f_numb = Font(10, 700, FONT_NUM)
         self.f_cell_s = Font(9, 700, FONT_NUM)
@@ -480,6 +516,7 @@ class Panel(Window):
                 "kind": "app", "key": app,
                 "name": APP_META[app].get("short", app_label(app)),
                 "sub": sub, "color": app_color(app), "open": open_,
+                "glyph": APP_META[app].get("icon", app[:2].upper()),
                 "bar": tokens / max_t,
                 "cells": [
                     self._cell(fmt_tokens(tokens), True),
@@ -525,6 +562,7 @@ class Panel(Window):
             self._rows.append({
                 "kind": "model", "key": key, "name": m["name"],
                 "sub": sub, "color": app_color(m["app"]), "open": open_,
+                "glyph": (m["name"] or key)[:2].upper(),
                 "bar": (m["total_tokens"] or 0) / max_t,
                 "cells": [
                     self._cell(fmt_tokens(m["total_tokens"]), True),
@@ -593,6 +631,7 @@ class Panel(Window):
                 "sub": f"{src_txt} · {n:,} 次采样",
                 "color": app_color(srcs[0][0] if srcs else m["app"]),
                 "open": open_,
+                "glyph": (m["name"] or key)[:2].upper(),
                 "bar": (sp.get("tps") or 0) / max_tps,
                 "cells": [
                     self._cell(fmt_ms(sp.get("ttft_p50")),
@@ -759,8 +798,8 @@ class Panel(Window):
             # 不能因此把整帧画崩 —— 保留上一次的数据继续画。
             self._status_error = f"数据读取失败: {e}"
         self._draw_titlebar(c)
-        self._draw_search(c)
-        self._draw_header(c)
+        self._draw_sidebar(c)
+        self._draw_toolbar(c)
         if self._view_idx == 3:
             self._draw_quota(c)
         else:
@@ -786,14 +825,10 @@ class Panel(Window):
             return "close"
         return ""
 
-    # ---- 搜索框 ----------------------------------------------------------
+    # ---- 搜索框（内容区工具栏左侧） -------------------------------------
     def _search_rect(self) -> tuple[float, float, float, float]:
-        """搜索框在标题栏右侧、最小化按钮左边。"""
-        w = 170.0
-        h = 20.0
-        x = TB_MIN_X - w - 12
-        y = (TITLE_H - h) / 2
-        return (x, y, w, h)
+        h = 30.0
+        return (SEARCH_X, TOOLBAR_Y + (TOOLBAR_H - h) / 2, SEARCH_W, h)
 
     def _search_box_at(self, x: float, y: float) -> bool:
         sx, sy, sw, sh = self._search_rect()
@@ -802,24 +837,22 @@ class Panel(Window):
     def _draw_search(self, c: Canvas):
         x, y, w, h = self._search_rect()
         focused = self._search_focus
-        c.round_rect(x, y, w, h, h / 2,
-                     fill=SURFACE_2 if focused else SURFACE,
-                     stroke=ACCENT if focused else LINE_2,
-                     stroke_w=1.0)
+        c.round_rect(x, y, w, h, 8, fill=SURFACE_2,
+                     stroke=ACCENT if focused else LINE_2, stroke_w=1.0)
         # 放大镜图标（圆环 + 手柄）
-        cx, cy = x + 12, y + h / 2
-        c.round_rect(cx - 4, cy - 4.5, 8, 8, 4, fill=None,
-                     stroke=TEXT_3, stroke_w=1.3)
-        c.line(cx + 2.8, cy + 3.2, cx + 6, cy + 6.4, TEXT_3, 1.3)
+        cx, cy = x + 15, y + h / 2
+        c.round_rect(cx - 4.5, cy - 4.5, 9, 9, 4.5, fill=None,
+                     stroke=TEXT_3, stroke_w=1.2)
+        c.line(cx + 3.2, cy + 3.2, cx + 6.4, cy + 6.4, TEXT_3, 1.2)
         # 文本 / 占位
         txt = self._search_q if self._search_q else "搜索工具 / 模型…"
         col = TEXT if self._search_q else TEXT_3
-        c.text(x + 22, y, w - 30, h, txt, self.f_small, col,
+        c.text(x + 26, y, w - 36, h, txt, self.f_search, col,
                align=DT_L | DT_VC | DT_SL)
         # 清除按钮
         if self._search_q:
-            c.line(x + w - 14, y + h / 2 - 4, x + w - 6, y + h / 2 + 4, TEXT_3, 1.2)
-            c.line(x + w - 14, y + h / 2 + 4, x + w - 6, y + h / 2 - 4, TEXT_3, 1.2)
+            c.line(x + w - 17, y + h / 2 - 4, x + w - 9, y + h / 2 + 4, TEXT_3, 1.2)
+            c.line(x + w - 17, y + h / 2 + 4, x + w - 9, y + h / 2 - 4, TEXT_3, 1.2)
 
     def _row_matches(self, row: dict) -> bool:
         """搜索过滤：name / sub / key 任一包含关键字（不区分大小写）即命中。"""
@@ -950,28 +983,31 @@ class Panel(Window):
 
     # ---- 通用卡片 ------------------------------------------------------
     @staticmethod
-    def _card(c: Canvas, x, y, w, h, r=14, fill=SURFACE, border=CARD_LINE,
+    def _card(c: Canvas, x, y, w, h, r=12, fill=SURFACE, border=CARD_LINE,
               highlight=True):
-        """一块卡片的完整材质：投影 + 面 + 描边 + 顶边高光。"""
-        c.round_rect(x, y + 1.5, w, h, r, fill=SHADOW)
+        """卡片材质：平铺面 + 1px 描边 + 很淡的顶边高光（Netcatty 那种平）。
+
+        参考界面里卡片没有投影，靠亮度差和描边分层；保留一档极淡的
+        顶边高光，是为了让卡片在纯色底上仍然「浮」得起来。
+        """
         c.round_rect(x, y, w, h, r, fill=fill, stroke=border, stroke_w=1.0)
         if highlight:
             c.line(x + r, y + 1, x + w - r, y + 1, CARD_TOP, 1)
 
+    # ---- 自绘标题栏（品牌 + 窗口按钮） ---------------------------------
     def _draw_titlebar(self, c: Canvas):
-        # 左侧：一个圆角小图标（三根递增柱 = 消耗曲线）+ 名称 + 副标题
-        ix, iy, isz = 12, (TITLE_H - 20) / 2, 20
-        c.round_rect(ix, iy, isz, isz, 6, fill=mix(SURFACE_2, ACCENT, 0.16),
-                     stroke=mix(SURFACE_2, ACCENT, 0.32), stroke_w=1.0)
-        for i, (bh, col) in enumerate([(4, "#6C7A96"), (7, "#A9B8D2"),
-                                       (10, ACCENT)]):
-            c.round_rect(ix + 5 + i * 4, iy + 10 - bh, 3, bh, 1.5, fill=col)
-        c.text(ix + isz + 8, 0, 160, TITLE_H, "TokenBoard", self.f_title_s,
+        ix, iy, isz = 14, (TITLE_H - 22) / 2, 22
+        c.round_rect(ix, iy, isz, isz, 6, fill=ACCENT)
+        # 三根递增的白柱 = 消耗曲线，和托盘图标同一套形状
+        for i, bh in enumerate((5, 8, 11)):
+            c.round_rect(ix + 5 + i * 4, iy + 12 - bh, 3, bh, 1.5, fill="#06231A")
+
+        c.text(ix + isz + 10, 0, 200, TITLE_H, "TokenBoard", self.f_title_s,
                TEXT, align=DT_L | DT_VC | DT_SL)
-        # 竖分隔 + 副标题
-        c.line(ix + isz + 8 + 76, TITLE_H / 2 - 5,
-               ix + isz + 8 + 76, TITLE_H / 2 + 5, LINE_2, 1)
-        c.text(ix + isz + 8 + 88, 0, 280, TITLE_H, "本机 AI 编程用量 · 成本 · 速度",
+        tw, _ = c.measure("TokenBoard", self.f_title_s)
+        sep = ix + isz + 10 + max(74, tw + 12)
+        c.line(sep, TITLE_H / 2 - 5, sep, TITLE_H / 2 + 5, LINE_2, 1)
+        c.text(sep + 10, 0, 320, TITLE_H, "本机 AI 编程用量 · 成本 · 速度",
                self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
 
         cy = TITLE_H / 2
@@ -979,7 +1015,7 @@ class Panel(Window):
             hot = self._hover_tb == key
             if hot:
                 c.fill_rect(x0, 0, TB_BTN_W, TB_BTN_H,
-                            "#E5484D" if key == "close" else SURFACE_3)
+                            DANGER if key == "close" else SURFACE_2)
             gcol = "#FFFFFF" if (hot and key == "close") else TEXT_2
             cx = x0 + TB_BTN_W / 2
             if key == "min":
@@ -990,38 +1026,142 @@ class Panel(Window):
 
         c.line(0, TITLE_H - 1, WIN_W, TITLE_H - 1, LINE)
 
-    # ---- 顶部控件条 --------------------------------------------------
-    def _draw_header(self, c: Canvas):
-        self._draw_seg(c, PAD, SEG_Y, VIEW_SEG_W,
-                       [v[0] for v in VIEWS], self._view_idx)
-        if self._view_idx == 3:
-            # 额度是实时的，时间范围对它没意义 —— 换成刷新说明
-            c.text(WIN_W - PAD - 240, SEG_Y + 4, 240, 16,
-                   "额度每 5 分钟自动刷新", self.f_small, TEXT_3,
-                   align=DT_R | DT_VC | DT_SL)
-        else:
-            self._draw_seg(c, PERIOD_SEG_X, SEG_Y, PERIOD_SEG_W,
-                           [p[0] for p in PERIODS], self._period_idx)
-        c.line(0, TITLE_H + HEAD_H, WIN_W, TITLE_H + HEAD_H, LINE)
+    # ---- 左侧导航栏 ----------------------------------------------------
+    NAV_ICONS = ("app", "model", "speed", "quota")
 
-    def _draw_seg(self, c: Canvas, x, y, w, items, sel):
+    def _nav_rect(self, i: int):
+        return (NAV_X, NAV_TOP + i * (NAV_H + NAV_GAP), NAV_W, NAV_H)
+
+    def _settings_rect(self):
+        return (NAV_X, self.height - FOOT_H - NAV_H - 12, NAV_W, NAV_H)
+
+    @staticmethod
+    def _ring(c: Canvas, cx, cy, r, color, width=1.4, n=28):
+        import math
+        pts = [(cx + r * math.cos(2 * math.pi * i / n),
+                cy + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+        c.polyline(pts, color, width)
+
+    def _nav_icon(self, c: Canvas, kind: str, x: float, y: float, color: str):
+        """侧栏/按钮上的 16px 线性图标（全部用线段画，不依赖字体）。"""
+        if kind == "app":
+            for dx in (0, 1):
+                for dy in (0, 1):
+                    c.round_rect(x + dx * 8.5, y + dy * 8.5, 6.5, 6.5, 1.6, fill=color)
+        elif kind == "model":
+            # 两层「堆叠」= 同一个模型在多个工具里
+            c.polyline([(x + 8, y + 0.5), (x + 14.5, y + 4.5), (x + 8, y + 8.5),
+                        (x + 1.5, y + 4.5), (x + 8, y + 0.5)], color, 1.4)
+            c.polyline([(x + 1.5, y + 9.5), (x + 8, y + 13.5),
+                        (x + 14.5, y + 9.5)], color, 1.4)
+        elif kind == "speed":
+            c.polyline([(x + 9.5, y), (x + 3, y + 8.5), (x + 7.5, y + 8.5),
+                        (x + 5.5, y + 16)], color, 1.6)
+        elif kind == "quota":
+            c.polyline(self._arc_pts(x + 8, y + 9, 6.5, 150, 240),
+                       color, 1.5)
+            c.ellipse(x + 6.2, y + 7.2, 3.6, 3.6, color)
+        elif kind == "settings":
+            self._ring(c, x + 8, y + 8, 5.6, color, 1.3)
+            for k in range(8):
+                import math
+                a = math.pi * k / 4
+                c.line(x + 8 + 6.6 * math.cos(a), y + 8 + 6.6 * math.sin(a),
+                       x + 8 + 8.3 * math.cos(a), y + 8 + 8.3 * math.sin(a),
+                       color, 1.3)
+        elif kind == "sync":
+            # 上下两个箭头 = 双向同步
+            c.line(x + 5.5, y + 13, x + 5.5, y + 3, color, 1.4)
+            c.polyline([(x + 3, y + 5.5), (x + 5.5, y + 3), (x + 8, y + 5.5)],
+                       color, 1.4)
+            c.line(x + 10.5, y + 3, x + 10.5, y + 13, color, 1.4)
+            c.polyline([(x + 8, y + 10.5), (x + 10.5, y + 13), (x + 13, y + 10.5)],
+                       color, 1.4)
+
+    def _draw_sidebar(self, c: Canvas):
+        c.fill_rect(0, TITLE_H, SIDEBAR_W, self.height - TITLE_H, SIDEBAR)
+        c.line(SIDEBAR_W - 1, TITLE_H, SIDEBAR_W - 1, self.height, LINE)
+
+        for i, (name, _key) in enumerate(VIEWS):
+            x, y, w, h = self._nav_rect(i)
+            active = i == self._view_idx
+            hover = (i == self._hover_nav) and not active
+            if hover:
+                c.round_rect(x, y, w, h, 8, fill=mix(SIDEBAR, "#FFFFFF", 0.055))
+            if active:
+                c.round_rect(x, y, w, h, 8, fill=SURFACE_2)
+                c.round_rect(x, y + 9, 3, h - 18, 1.5, fill=ACCENT)
+            col = TEXT if active else TEXT_2
+            self._nav_icon(c, self.NAV_ICONS[i], x + 16, y + (h - 16) / 2,
+                           ACCENT if active else TEXT_3)
+            c.text(x + 42, y, w - 48, h, name,
+                   self.f_nav_sel if active else self.f_nav, col,
+                   align=DT_L | DT_VC | DT_SL)
+
+        # 底部：同步设置（对应 Netcatty 侧栏底部的 Settings）
+        x, y, w, h = self._settings_rect()
+        c.line(x, y - 10, x + w, y - 10, LINE)
+        hot = self._hover_settings
+        if hot:
+            c.round_rect(x, y, w, h, 8, fill=mix(SIDEBAR, "#FFFFFF", 0.055))
+        self._nav_icon(c, "settings", x + 16, y + (h - 16) / 2,
+                       TEXT if hot else TEXT_3)
+        c.text(x + 42, y, w - 74, h, "同步设置", self.f_nav,
+               TEXT if hot else TEXT_2, align=DT_L | DT_VC | DT_SL)
+        cfg = self._sync_cfg
+        if cfg is not None and getattr(cfg, "enabled", False):
+            dot = DANGER if self._sync_failed else ACCENT
+            c.ellipse(x + w - 20, y + h / 2 - 3, 6, 6, dot)
+
+    # ---- 顶部工具栏（搜索 + 时间范围 + 操作按钮） ----------------------
+    def _btn_rect(self, which: str):
+        if which == "refresh":
+            return (BTN_REFRESH_X, TOOLBAR_Y, BTN_W, TOOLBAR_H)
+        return (BTN_SYNC_X, TOOLBAR_Y, BTN_W, TOOLBAR_H)
+
+    def _draw_toolbar(self, c: Canvas):
+        self._draw_search(c)
+        if self._view_idx == 3:
+            c.text(PERIOD_X, TOOLBAR_Y, 260, TOOLBAR_H,
+                   "额度每 5 分钟自动刷新", self.f_small, TEXT_3,
+                   align=DT_L | DT_VC | DT_SL)
+        else:
+            self._draw_seg(c, PERIOD_X, TOOLBAR_Y + 6, PERIOD_W, 22,
+                           [p[0] for p in PERIODS], self._period_idx)
+
+        # 同步（描边按钮）
+        ax, ay, aw, ah = self._btn_rect("sync")
+        hot = self._hover_btn == "sync"
+        c.round_rect(ax, ay, aw, ah, 8,
+                     fill=mix(SURFACE, "#FFFFFF", 0.07) if hot else None,
+                     stroke=LINE_2, stroke_w=1.0)
+        self._nav_icon(c, "sync", ax + 14, ay + (ah - 16) / 2,
+                       ACCENT if hot else TEXT_2)
+        c.text(ax + 32, ay, aw - 36, ah, "同步", self.f_btn,
+               TEXT if hot else TEXT_2, align=DT_L | DT_VC | DT_SL)
+
+        # 刷新（主按钮，emerald）
+        bx, by, bw, bh = self._btn_rect("refresh")
+        hot = self._hover_btn == "refresh"
+        c.round_rect(bx, by, bw, bh, 8, fill=ACCENT_HOVER if hot else ACCENT)
+        c.text(bx, by, bw, bh, "刷新", self.f_btn, "#06231A",
+               align=DT_C | DT_VC | DT_SL)
+
+    def _draw_seg(self, c: Canvas, x, y, item_w, item_h, items, sel):
         n = len(items)
-        # 药丸容器：面 + 1px 描边，选中项再压一层亮面和顶边高光
-        c.round_rect(x - 3, y - 3, w * n + 6, SEG_H + 6, (SEG_H + 6) / 2,
-                     fill=SURFACE_2, stroke=CARD_LINE, stroke_w=1.0)
+        c.round_rect(x, y, item_w * n, item_h, 7, fill=SURFACE_2,
+                     stroke=LINE_2, stroke_w=1.0)
         for i, name in enumerate(items):
-            ix = x + i * w
+            ix = x + i * item_w
             if i == sel:
-                c.round_rect(ix, y, w, SEG_H, SEG_H / 2,
-                             fill=mix(SURFACE_3, ACCENT, 0.22),
-                             stroke=mix(SURFACE_3, ACCENT, 0.5),
+                c.round_rect(ix + 2, y + 2, item_w - 4, item_h - 4, 5,
+                             fill=SURFACE_3,
+                             stroke=mix(SURFACE_3, "#FFFFFF", 0.10),
                              stroke_w=1.0)
-                c.line(ix + 10, y + 1, ix + w - 10, y + 1,
-                       mix(mix(SURFACE_3, ACCENT, 0.22), "#FFFFFF", 0.16), 1)
-                c.text(ix, y, w, SEG_H, name, self.f_seg_sel, TEXT,
+                c.text(ix, y, item_w, item_h, name, self.f_seg_sel, TEXT,
                        align=DT_C | DT_VC | DT_SL)
             else:
-                c.text(ix, y, w, SEG_H, name, self.f_seg, TEXT_2,
+                c.text(ix, y, item_w, item_h, name, self.f_seg, TEXT_3,
                        align=DT_C | DT_VC | DT_SL)
 
     # ---- 顶部指标卡 --------------------------------------------------
@@ -1045,6 +1185,7 @@ class Panel(Window):
                         f"出 {fmt_tokens(t.get('output'))} · "
                         f"缓存 {fmt_tokens(t.get('cache'))}",
                 "spark": True,
+                "icon": "token",
                 "tone": ACCENT,
             },
             {
@@ -1052,6 +1193,7 @@ class Panel(Window):
                 "value": fmt_money(cost),
                 "sub1": f"≈ {fmt_cny(cost)}",
                 "sub2": f"{fmt_money(per_m)} / M tokens" if total else "无价格数据",
+                "icon": "cost",
                 "tone": COST,
             },
             {
@@ -1061,6 +1203,7 @@ class Panel(Window):
                          else "本期无采样"),
                 "sub2": (f"{ttft_n:,} 次采样" if ttft_n
                          else "Codex / OpenCode 提供"),
+                "icon": "latency",
                 "tone": LATENCY,
             },
             {
@@ -1071,6 +1214,7 @@ class Panel(Window):
                          else "本期无采样"),
                 "sub2": (f"{n_call:,} 次调用 · 均 {fmt_ms(sp.get('dur_avg'))}"
                          if tps else "OpenCode / DSH / ZCode 提供"),
+                "icon": "speed",
                 "tone": SPEED,
             },
         ]
@@ -1078,21 +1222,39 @@ class Panel(Window):
         for i, tile in enumerate(tiles):
             self._draw_kpi_tile(c, KPI_X[i], KPI_Y, KPI_W[i], KPI_H, tile)
 
+    def _metric_icon(self, c: Canvas, kind: str, x: float, y: float, color: str):
+        """指标卡左上那个 16px 小图标。"""
+        if kind == "token":
+            for i, bh in enumerate((5, 8, 11)):
+                c.round_rect(x + i * 5, y + 12 - bh, 3, bh, 1.5, fill=color)
+        elif kind == "cost":
+            c.text(x - 1, y - 1, 18, 18, "$", self.f_btn, color,
+                   align=DT_C | DT_VC | DT_SL)
+        elif kind == "latency":
+            self._ring(c, x + 8, y + 8, 5.6, color, 1.3)
+            c.line(x + 8, y + 8, x + 8, y + 4.2, color, 1.2)
+            c.line(x + 8, y + 8, x + 10.8, y + 9, color, 1.2)
+        elif kind == "speed":
+            self._nav_icon(c, "speed", x, y, color)
+
     def _draw_kpi_tile(self, c: Canvas, x, y, w, h, tile: dict):
-        # 卡面统一带一点底色（别让四张卡变成红绿灯），
-        # 指标的「身份色」只在左侧竖条和描边上出现：蓝=用量、绿=成本、琥珀=首字、紫=速度。
+        """指标卡：左上色块图标 + 标签，下面大数字，再下面两行说明。
+
+        和参考界面一样，卡片本身不上色 —— 颜色只出现在那个 24px 图标块里，
+        四张卡并排时不会变成一排红绿灯。
+        """
         tone = tile.get("tone") or ACCENT
         primary = bool(tile.get("spark"))
-        fill = mix(SURFACE, ACCENT, 0.045 if primary else 0.03)
-        self._card(c, x, y, w, h, 14, fill=fill,
-                   border=mix(CARD_LINE, tone, 0.42))
+        self._card(c, x, y, w, h, 12, fill=SURFACE)
         pad = 14
         spark = primary
         text_w = w - pad * 2 - (86 if spark else 0)
 
-        # 标签左边一小段强调色竖条，标出这块指标的身份色
-        c.round_rect(x + pad, y + 12, 3, 12, 1.5, fill=tone)
-        c.text(x + pad + 10, y + 11, w - pad * 2 - 10, 14, tile["label"],
+        c.round_rect(x + pad, y + 12, 24, 24, 7,
+                     fill=mix(BASE, tone, 0.22),
+                     stroke=mix(BASE, tone, 0.38), stroke_w=1.0)
+        self._metric_icon(c, tile.get("icon", "token"), x + pad + 4, y + 16, tone)
+        c.text(x + pad + 32, y + 12, w - pad * 2 - 32, 24, tile["label"],
                self.f_kpi_label, TEXT_2, align=DT_L | DT_VC | DT_SL)
 
         # 大数字：窄窗口下自动降一档字号，别让「104 tok/s」被裁掉
@@ -1105,20 +1267,19 @@ class Panel(Window):
             uw, _ = c.measure(" " + unit, self.f_kpi_unit)
         if vw + uw > text_w and self.f_kpi_m:
             font = self.f_kpi_m
-        c.text(x + pad, y + 26, text_w, 32, value, font, TEXT,
+        c.text(x + pad, y + 38, text_w, 28, value, font, TEXT,
                align=DT_L | DT_VC | DT_SL)
         if unit:
-            c.text(x + pad + min(vw, text_w) + 4, y + 38, 60, 16, unit,
+            c.text(x + pad + min(vw, text_w) + 4, y + 48, 60, 14, unit,
                    self.f_kpi_unit, TEXT_3, align=DT_L | DT_VC | DT_SL)
 
-        c.text(x + pad, y + 61, text_w, 13, tile["sub1"], self.f_kpi_sub,
+        c.text(x + pad, y + 68, text_w, 12, tile["sub1"], self.f_kpi_sub,
                TEXT_2, align=DT_L | DT_VC | DT_SL)
-        c.text(x + pad, y + 75, text_w, 13, tile["sub2"], self.f_kpi_sub,
+        c.text(x + pad, y + 80, text_w, 12, tile["sub2"], self.f_kpi_sub,
                TEXT_3, align=DT_L | DT_VC | DT_SL)
 
         if spark:
-            sx = x + w - 86
-            self._draw_spark(c, sx, y + 28, 74, 46)
+            self._draw_spark(c, x + w - 84, y + 30, 70, 40)
 
     def _draw_spark(self, c: Canvas, x, y, w, h):
         vals = self._spark
@@ -1184,7 +1345,7 @@ class Panel(Window):
     def _row_rect(self, i: int) -> tuple[float, float, float, float]:
         """第 i 行在当前滚动位置下的屏幕矩形 (x, y, w, h)。"""
         y = BODY_Y + (self._row_y[i] - self._scroll_base())
-        return (PAD - 6, y, WIN_W - PAD * 2 + 12, self._row_height(self._rows[i]))
+        return (CARD_X + 4, y, CARD_W - 8, self._row_height(self._rows[i]))
 
     def _row_at(self, x: float, y: float) -> int:
         for i, row in enumerate(self._rows):
@@ -1204,10 +1365,10 @@ class Panel(Window):
                 hint = "本期没有用量"
             else:
                 hint = "本期还没有速度采样"
-            c.text(PAD, BODY_Y + 22, WIN_W - PAD * 2, 20, hint, self.f_small,
+            c.text(CONTENT_X, BODY_Y + 22, CONTENT_W, 20, hint, self.f_small,
                    TEXT_3, align=DT_L | DT_VC | DT_SL)
             if self._view_idx == 2:
-                c.text(PAD, BODY_Y + 44, WIN_W - PAD * 2, 20,
+                c.text(CONTENT_X, BODY_Y + 44, CONTENT_W, 20,
                        "首字来自 Codex / OpenCode，吞吐来自 OpenCode / DSH / ZCode",
                        self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
             return
@@ -1241,7 +1402,7 @@ class Panel(Window):
             # 有图表时把卡片底部那点留白收紧，给图表腾高度
             strip_h = min(strip_h, body_bottom - strip_top)
 
-        self._card(c, PAD - 8, card_top, WIN_W - PAD * 2 + 16, card_h, 14)
+        self._card(c, CARD_X, card_top, CARD_W, card_h, 12)
 
         # 表头（压在卡片顶部内侧，和数据行一起构成一张表）
         cols = VIEW_COLS.get(self._view_idx, VIEW_COLS[0])
@@ -1251,10 +1412,10 @@ class Panel(Window):
         for i, label in enumerate(cols):
             c.text(COL_X[i], COL_HEAD_Y, COL_W[i], COL_HEAD_H, label,
                    self.f_head, TEXT_3, align=DT_R | DT_VC | DT_SL)
-        c.line(PAD, COL_HEAD_Y + COL_HEAD_H + 2, WIN_W - PAD,
-               COL_HEAD_Y + COL_HEAD_H + 2, LINE, 1)
+        c.line(CARD_X + 14, COL_HEAD_Y + COL_HEAD_H + 2,
+               CARD_X + CARD_W - 14, COL_HEAD_Y + COL_HEAD_H + 2, LINE, 1)
 
-        token = c.push_clip(PAD - 10, BODY_Y - 2, WIN_W - PAD * 2 + 20,
+        token = c.push_clip(CARD_X + 2, BODY_Y - 2, CARD_W - 4,
                             card_h - footer_h - 22)
         for i in range(self._scroll, self._scroll + drawn):
             y = BODY_Y + (self._row_y[i] - base)
@@ -1279,7 +1440,7 @@ class Panel(Window):
     # ---- 卡片底部合计行 ------------------------------------------------
     def _draw_totals(self, c: Canvas, y: float):
         """合计行：把这一屏的数字收个尾，也顺手填掉卡片底部的空白。"""
-        c.line(PAD, y, WIN_W - PAD, y, LINE, 1)
+        c.line(CARD_X + 14, y, CARD_X + CARD_W - 14, y, LINE, 1)
         t = self._totals
         sp = (self._speed or {}).get("total") or {}
         # 标签带上「多少个工具/模型」，滚到一半时也能知道这一屏以外还有东西
@@ -1325,9 +1486,9 @@ class Panel(Window):
             return
 
         # 整块做成一张卡片，比一排悬空的柱子和上面的表格更成体系
-        self._card(c, PAD, top, WIN_W - PAD * 2, h, 14)
-        inset = PAD + 16
-        w = WIN_W - PAD * 2 - 32
+        self._card(c, CONTENT_X, top, CONTENT_W, h, 12)
+        inset = CONTENT_X + 16
+        w = CONTENT_W - 32
         n = len(vals)
         mx = max(vals)
 
@@ -1347,7 +1508,7 @@ class Panel(Window):
                align=DT_L | DT_VC | DT_SL)
         # 柱子上有数值时就不用再单独写峰值，避免同一个数出现两次
         if not show_val:
-            c.text(WIN_W - PAD - 16 - 180, top + (4 if compact else 10), 180, 14,
+            c.text(CONTENT_X + CONTENT_W - 16 - 180, top + (4 if compact else 10), 180, 14,
                    f"峰值 {fmt_tokens(mx)}", self.f_tinyb, TEXT_3,
                    align=DT_R | DT_VC | DT_SL)
 
@@ -1398,50 +1559,44 @@ class Panel(Window):
         color = row["color"]
 
         if main and idx == self._hover_row:
-            # 悬停：整行压一层浅底 + 左侧强调条，鼠标在哪一行一眼看得出
-            c.round_rect(PAD - 4, y + 1, WIN_W - PAD * 2 + 8, h - 2, 10,
-                         fill=ROW_HOVER)
-            c.round_rect(PAD - 4, y + 1, 2, h - 2, 1,
-                         fill=mix(ROW_HOVER, color, 0.9))
+            # 悬停：整行压一层浅底（参考界面里就是这种「只亮一档」的做法）
+            c.round_rect(CARD_X + 6, y + 2, CARD_W - 12, h - 4, 8, fill=ROW_HOVER)
 
         if main:
-            # 品牌色竖条 + 展开箭头 + 名称（第二行小字）
-            c.round_rect(PAD, y + 9, TICK_W, h - 18, 1.5,
-                         fill=color if not (idx == self._hover_row)
-                         else mix(color, "#FFFFFF", 0.22))
-            c.text(PAD + 9, y + 7, 12, 16,
+            # 左侧品牌色图标块 —— 对应 Netcatty 列表里的 host 图标
+            ty = y + (h - TILE) / 2
+            hot = idx == self._hover_row
+            c.round_rect(CARD_X + 14, ty, TILE, TILE, 8,
+                         fill=mix(SURFACE, color, 0.30 if hot else 0.24),
+                         stroke=mix(SURFACE, color, 0.55), stroke_w=1.0)
+            c.text(CARD_X + 14, ty, TILE, TILE, row.get("glyph", "?"),
+                   self.f_tile, mix(color, "#FFFFFF", 0.78),
+                   align=DT_C | DT_VC | DT_SL)
+
+            # 名称 + 展开箭头
+            nw, _ = c.measure(row["name"], self.f_name)
+            c.text(NAME_X, y + 6, min(NAME_W, nw + 2), 17, row["name"],
+                   self.f_name, TEXT, align=DT_L | DT_VC | DT_SL)
+            c.text(NAME_X + nw + 7, y + 6, 14, 17,
                    DISCLOSURE_OPEN if row.get("open") else DISCLOSURE_CLOSED,
-                   self.f_tiny, TEXT_2, align=DT_L | DT_VC | DT_SL)
-            c.text(NAME_X, y + 5, NAME_W, 18, row["name"], self.f_name, TEXT,
-                   align=DT_L | DT_VC | DT_SL)
+                   self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
             if row.get("sub"):
-                c.text(NAME_X, y + 24, BAR_END - NAME_X - 6, 14, row["sub"],
+                c.text(NAME_X, y + 25, BAR_END - NAME_X - 6, 13, row["sub"],
                        self.f_name_sub, TEXT_3, align=DT_L | DT_VC | DT_SL)
-            # 进度条与数值行居中对齐：轨道按品牌色染一点，条 + 末端高光
-            c.round_rect(BAR_X, y + 14, BAR_W, 5, 2.5,
-                         fill=mix(SURFACE, color, 0.18))
-            bw = max(2.0, BAR_W * max(0.0, min(1.0, row.get("bar") or 0)))
-            c.round_rect(BAR_X, y + 14, bw, 5, 2.5, fill=color)
-            if bw > 4:
-                c.fill_rect(BAR_X + bw - 2, y + 14.5, 1.5, 4,
-                            mix(color, "#FFFFFF", 0.55))
-            cy, chh = y + 8, 18
+            cy, chh = y + 6, 17
             font = self.f_cell
-            # 行底一条极淡的分隔线，扫读时不至于串行（最后一行贴着卡片边，不画）
+            # 行底一条极淡的分隔线（最后一行贴着卡片边，不画）
             if not last:
-                c.line(NAME_X, y + h - 1, WIN_W - PAD - 2, y + h - 1, LINE, 1)
+                c.line(CARD_X + 14, y + h - 1, CARD_X + CARD_W - 14,
+                       y + h - 1, LINE, 1)
         else:
-            # 子行：一条竖引导线 + 端点圆点，代替纯缩进
-            c.line(PAD + 13.5, y, PAD + 13.5, y + h, LINE, 1)
-            c.ellipse(PAD + 11, y + 9, 6, 6, mix(SURFACE, color, 0.22))
-            c.ellipse(PAD + 12, y + 10, 4, 4, color)
-            c.text(PAD + 26, y + 5, NAME_W + 10, 16, row["name"],
-                   self.f_small, TEXT_2, align=DT_L | DT_VC | DT_SL)
-            c.round_rect(BAR_X, y + 11, BAR_W, 4, 2,
-                         fill=mix(SURFACE, color, 0.18))
-            bw = max(1.0, BAR_W * max(0.0, min(1.0, row.get("bar") or 0)))
-            c.round_rect(BAR_X, y + 11, bw, 4, 2, fill=color)
-            cy, chh = y + 5, 16
+            # 子行：一条细引导线 + 端点圆点，代替纯缩进
+            c.line(NAME_X - 12, y, NAME_X - 12, y + h, LINE, 1)
+            c.ellipse(NAME_X - 15, y + h / 2 - 3, 6, 6,
+                      mix(SURFACE, color, 0.35))
+            c.text(NAME_X, y + 4, NAME_W, 16, row["name"], self.f_small,
+                   TEXT_2, align=DT_L | DT_VC | DT_SL)
+            cy, chh = y + 4, 16
             font = self.f_cell_s
 
         for i, (text, col) in enumerate(row["cells"]):
@@ -1464,8 +1619,8 @@ class Panel(Window):
     def _draw_quota(self, c: Canvas):
         blocks = self._quota_blocks()
         if not blocks:
-            self._card(c, PAD, QUOTA_Y, QUOTA_W, 64, 14)
-            c.text(PAD + 18, QUOTA_Y + 22, QUOTA_W - 36, 20, "正在获取订阅额度…",
+            self._card(c, CONTENT_X, QUOTA_Y, QUOTA_W, 64, 12)
+            c.text(CONTENT_X + 18, QUOTA_Y + 22, QUOTA_W - 36, 20, "正在获取订阅额度…",
                    self.f_meta, TEXT_3, align=DT_L | DT_VC | DT_SL)
             return
 
@@ -1474,7 +1629,7 @@ class Panel(Window):
         max_scroll = max(0.0, total - QUOTA_H)
         self._quota_scroll = max(0.0, min(self._quota_scroll, max_scroll))
 
-        token = c.push_clip(PAD, QUOTA_Y, QUOTA_W, QUOTA_H)
+        token = c.push_clip(CONTENT_X, QUOTA_Y, QUOTA_W, QUOTA_H)
         y = QUOTA_Y - self._quota_scroll
         for q, h in blocks:
             self._draw_quota_card(c, q, y, h, QUOTA_W)
@@ -1491,41 +1646,41 @@ class Panel(Window):
 
     def _draw_quota_card(self, c: Canvas, q: dict, y: float, h: float,
                          w: float):
-        self._card(c, PAD, y, w, h, 14)
+        self._card(c, CONTENT_X, y, w, h, 12)
         color = QUOTA_COLOR.get(q.get("provider", ""), ACCENT)
 
         ok = q.get("ok")
         stale = bool(q.get("stale"))
-        dot = WARN if stale else ("#FFFFFF" if ok else
+        dot = WARN if stale else (ACCENT if ok else
                                  (DANGER if q.get("error") else LINE_2))
-        c.ellipse(PAD + 16, y + 13, 7, 7, dot)
-        c.text(PAD + 30, y + 8, 300, 18, q.get("name", ""), self.f_name, TEXT,
+        c.ellipse(CONTENT_X + 16, y + 13, 7, 7, dot)
+        c.text(CONTENT_X + 30, y + 8, 300, 18, q.get("name", ""), self.f_name, TEXT,
                align=DT_L | DT_VC | DT_SL)
 
         right = q.get("note") or ""
         if not right and q.get("windows"):
             right = f"{len(q['windows'])} 项限额"
         if right:
-            c.text(PAD + w - 260, y + 9, 244, 16, right, self.f_small, TEXT_3,
+            c.text(CONTENT_X + w - 260, y + 9, 244, 16, right, self.f_small, TEXT_3,
                    align=DT_R | DT_VC | DT_SL)
         if stale:
-            c.text(PAD + w - 260, y + 24, 244, 14, "更新失败 · 显示上次数据",
+            c.text(CONTENT_X + w - 260, y + 24, 244, 14, "更新失败 · 显示上次数据",
                    self.f_tiny, WARN, align=DT_R | DT_VC | DT_SL)
 
         wins = q.get("windows") or []
         if not wins:
             msg = q.get("error") or "无额度信息"
-            c.text(PAD + 30, y + 32, w - 60, 16, msg, self.f_small,
+            c.text(CONTENT_X + 30, y + 32, w - 60, 16, msg, self.f_small,
                    DANGER if q.get("error") else TEXT_3, align=DT_L | DT_VC | DT_SL)
             hint = q.get("hint")
             if hint:
-                c.text(PAD + 30, y + 48, w - 60, 16, hint, self.f_tiny, TEXT_3,
+                c.text(CONTENT_X + 30, y + 48, w - 60, 16, hint, self.f_tiny, TEXT_3,
                        align=DT_L | DT_VC | DT_SL)
             return
 
         wy = y + 26
         for win in wins:
-            self._draw_quota_window(c, PAD + 36, wy + 20, win, color, w)
+            self._draw_quota_window(c, CONTENT_X + 36, wy + 20, win, color, w)
             wy += 40
 
     def _draw_quota_window(self, c: Canvas, cx: float, cy: float, win: dict,
@@ -1546,7 +1701,7 @@ class Panel(Window):
                self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
 
         until = fmt_until(win.get("reset_at") or 0)
-        c.text(PAD + card_w - 150, cy - 8, 134, 16, until, self.f_small, TEXT_2,
+        c.text(CONTENT_X + card_w - 150, cy - 8, 134, 16, until, self.f_small, TEXT_2,
                align=DT_R | DT_VC | DT_SL)
 
     @staticmethod
@@ -1571,17 +1726,16 @@ class Panel(Window):
 
     # ---- 底部状态条 --------------------------------------------------
     def _draw_footer(self, c: Canvas):
-        c.line(PAD, FOOT_Y - 4, WIN_W - PAD, FOOT_Y - 4, LINE)
-        x = PAD
+        c.line(CONTENT_X, FOOT_Y - 4, WIN_W - PAD, FOOT_Y - 4, LINE)
+        x = CONTENT_X
         yy = FOOT_Y
         self._dot_hit = []
         for app in APP_META:
             state = self._status.get(app)
             ok = state[0] if state else None
-            # 正常态用白点（界面整体白色）；只有异常才留颜色：
-            # 红=采集失败，灰=还没采到
-            dot = "#FFFFFF" if ok else (DANGER if ok is False else LINE_2)
-            # 小圆点外面套一圈同色淡光，比分色纯圆点更精致，也更容易看清状态
+            # 正常 = emerald，失败 = 红，未采集 = 灰
+            dot = ACCENT if ok else (DANGER if ok is False else LINE_2)
+            # 小圆点外面套一圈同色淡光，比纯圆点更容易看清状态
             c.ellipse(x - 1, yy + 3, 9, 9, mix(BASE, dot, 0.28))
             c.ellipse(x, yy + 4, 7, 7, dot)
             label = APP_META[app].get("short", app_label(app))
@@ -1635,13 +1789,34 @@ class Panel(Window):
         self.invalidate()
 
     # ------------------------------------------------------------- 交互
-    def _seg_hit(self, x: float, y: float, x0: float, w: float, n: int) -> int:
-        if not (SEG_Y - 4 <= y <= SEG_Y + SEG_H + 4):
+    def _seg_hit(self, x: float, y: float, x0: float, y0: float,
+                 item_w: float, item_h: float, n: int) -> int:
+        if not (y0 - 4 <= y <= y0 + item_h + 4):
             return -1
-        if not (x0 - 4 <= x <= x0 + w * n + 4):
+        if not (x0 - 4 <= x <= x0 + item_w * n + 4):
             return -1
-        idx = int((max(x0, min(x, x0 + w * n - 1)) - x0) // w)
+        idx = int((max(x0, min(x, x0 + item_w * n - 1)) - x0) // item_w)
         return idx if 0 <= idx < n else -1
+
+    def _nav_at(self, x: float, y: float) -> int:
+        if x > SIDEBAR_W or y < TITLE_H:
+            return -1
+        for i in range(len(VIEWS)):
+            nx, ny, nw, nh = self._nav_rect(i)
+            if nx <= x < nx + nw and ny <= y < ny + nh:
+                return i
+        return -1
+
+    def _settings_at(self, x: float, y: float) -> bool:
+        sx, sy, sw, sh = self._settings_rect()
+        return sx <= x < sx + sw and sy <= y < sy + sh
+
+    def _btn_at(self, x: float, y: float) -> str:
+        for which in ("sync", "refresh"):
+            bx, by, bw, bh = self._btn_rect(which)
+            if bx <= x < bx + bw and by <= y < by + bh:
+                return which
+        return ""
 
     def on_click(self, x: float, y: float):
         # 右键菜单打开时，点击必须先处理它（命中菜单项则执行，否则关闭）
@@ -1671,8 +1846,8 @@ class Panel(Window):
         if self._search_focus:
             self._search_focus = False
             self.invalidate()
-        # 视图切换
-        idx = self._seg_hit(x, y, PAD, VIEW_SEG_W, len(VIEWS))
+        # 侧栏导航
+        idx = self._nav_at(x, y)
         if idx >= 0:
             if idx != self._view_idx:
                 self._view_idx = idx
@@ -1682,9 +1857,24 @@ class Panel(Window):
                 self._hover_row = -1
                 self.invalidate()
             return
+        # 侧栏底部：同步设置
+        if self._settings_at(x, y):
+            if self.on_open_settings is not None:
+                self.on_open_settings()
+            return
+        # 工具栏按钮：同步 / 刷新
+        which = self._btn_at(x, y)
+        if which == "refresh":
+            self._start_scan()
+            return
+        if which == "sync":
+            if not self.sync_now(force=True) and self.on_open_settings is not None:
+                self.on_open_settings()
+            return
         # 时间范围（额度视图里这一行是说明文字，别误判）
         if self._view_idx != 3:
-            idx = self._seg_hit(x, y, PERIOD_SEG_X, PERIOD_SEG_W, len(PERIODS))
+            idx = self._seg_hit(x, y, PERIOD_X, TOOLBAR_Y + 6, PERIOD_W, 22,
+                                len(PERIODS))
             if idx >= 0:
                 if idx != self._period_idx:
                     self._period_idx = idx
@@ -1815,9 +2005,11 @@ class Panel(Window):
                 user32.ScreenToClient(self.hwnd, ctypes.byref(pos))
                 x = pos.x / self.scale
                 y = pos.y / self.scale
-            hot = self._seg_hit(x, y, PAD, VIEW_SEG_W, len(VIEWS)) >= 0
+            hot = self._nav_at(x, y) >= 0 or self._settings_at(x, y) or bool(self._btn_at(x, y))
+            if not hot:
+                hot = self._search_box_at(x, y)
             if not hot and self._view_idx != 3:
-                hot = self._seg_hit(x, y, PERIOD_SEG_X, PERIOD_SEG_W,
+                hot = self._seg_hit(x, y, PERIOD_X, TOOLBAR_Y + 6, PERIOD_W, 22,
                                     len(PERIODS)) >= 0
             if not hot and self._view_idx != 3:
                 hot = self._row_at(x, y) >= 0
@@ -1867,7 +2059,7 @@ class Panel(Window):
             self.invalidate()
 
     def on_hover(self) -> None:
-        """鼠标移动时更新悬停行，变化了才重绘（避免每次移动都刷新）。"""
+        """鼠标移动时更新悬停行/导航/按钮，变化了才重绘（避免每次移动都刷新）。"""
         mx, my = self._mouse_x, self._mouse_y
         if self._ctx_items:
             hot = self._ctx_hit_item(mx, my)
@@ -1878,7 +2070,22 @@ class Panel(Window):
         if new_tb != self._hover_tb:
             self._hover_tb = new_tb
             self.invalidate()
+        nav = self._nav_at(mx, my)
+        if nav != self._hover_nav:
+            self._hover_nav = nav
+            self.invalidate()
+        st = self._settings_at(mx, my)
+        if st != self._hover_settings:
+            self._hover_settings = st
+            self.invalidate()
+        btn = self._btn_at(mx, my)
+        if btn != self._hover_btn:
+            self._hover_btn = btn
+            self.invalidate()
         if self._view_idx == 3:
+            if self._hover_row != -1:
+                self._hover_row = -1
+                self.invalidate()
             return
         new = self._row_at(mx, my)
         if new != self._hover_row:

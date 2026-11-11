@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""面板预览：隔离抓取自绘窗口（DWM 路径），写 PNG 到 tools/。
+"""主面板截图（改版验收用）。
 
-路线同 tools/preview_configwin.py：
-    python tools/preview_panel.py            # 三张：默认 / 搜索态 / 右键菜单
-子进程 --child <mode> 负责建窗+抓图，PNG 字节走 stdout，
-本进程只负责落盘（避免加密文件系统把「创建了窗口的进程」写的图打花）。
+子进程渲染、PNG 走管道回父进程落盘（同 preview_configwin 的老办法：
+渲染进程退出时 GDI 收尾会弄坏同进程写出的 PNG）。
+
+    python tools/preview_panel.py
 """
 from __future__ import annotations
 
@@ -15,51 +15,54 @@ import sys
 import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-ROOT = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(ROOT) if os.path.basename(ROOT) == "tools" else ROOT
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 
 def child(mode: str):
     from tokenboard.config import DB_PATH
-    from tokenboard.pricing import get_pricing
     from tokenboard.scanner import Scanner
     from tokenboard.store import Store
     from tokenboard.ui.panel import Panel
     from wincap import capture_client
 
     store = Store(DB_PATH)
-    store.load_pricing(get_pricing().pricing_map())
-    scanner = Scanner(store)
-    p = Panel(store, scanner)
-    p.create()
-    p.show()
-    time.sleep(1.5)
-
-    if mode == "search":
-        p._search_focus = True
-        for ch in "claude":
-            p.on_char(ch)
-        p._load()
-    elif mode == "ctx":
-        i = next(i for i, r in enumerate(p._rows)
-                 if r["kind"] not in ("sub", "ssub"))
-        rx, ry, rw, rh = p._row_rect(i)
-        p.on_right_click(rx + 30, ry + rh / 2)
-    elif mode == "footer":
-        pass
-
-    from tokenboard.ui.win32 import MSG, user32
-    msg = MSG()
-    end = time.time() + 0.6
-    while time.time() < end:
-        while user32.PeekMessageW(__import__("ctypes").byref(msg), None, 0, 0, 1):
-            user32.TranslateMessage(__import__("ctypes").byref(msg))
-            user32.DispatchMessageW(__import__("ctypes").byref(msg))
-        time.sleep(0.02)
-
-    img = capture_client(p.hwnd)
+    panel = Panel(store, Scanner(store))
+    panel.create()
+    panel.resize_to = None
+    if mode == "app":
+        panel._view_idx = 0
+        panel._expanded.add("minimax")
+    elif mode == "model":
+        panel._view_idx = 1
+        panel._expanded.add("deepseek-v4.1-flash-1017")
+    elif mode == "speed":
+        panel._view_idx = 2
+    elif mode == "quota":
+        panel._view_idx = 3
+        panel._quota = [
+            {"provider": "minimax", "name": "MiniMax M Plan", "ok": True,
+             "windows": [
+                 {"kind": "5h", "used": 42, "remaining": 58, "reset_at": 0},
+                 {"kind": "weekly", "used": 73, "remaining": 27, "reset_at": 0},
+             ]},
+            {"provider": "codex", "name": "Codex · Plus", "ok": True,
+             "windows": [
+                 {"kind": "5h", "used": 18, "remaining": 82,
+                  "reset_at": (time.time() + 7200) * 1000},
+                 {"kind": "weekly", "used": 61, "remaining": 39,
+                  "reset_at": (time.time() + 3 * 86400) * 1000},
+             ],
+             "note": "剩余重置券 2 张"},
+            {"provider": "volcengine", "name": "火山方舟编程包", "ok": False,
+             "error": "未配置 AK/SK", "windows": [],
+             "hint": "把 AccessKey 写到 ~/.tokenboard/volcengine.json"},
+        ]
+    panel._hover_row = 1
+    panel.show()
+    time.sleep(1.2)
+    img = capture_client(panel.hwnd)
     bio = io.BytesIO()
     img.save(bio, format="PNG")
     sys.stdout.buffer.write(bio.getvalue())
@@ -67,27 +70,25 @@ def child(mode: str):
 
 
 def main() -> int:
-    modes = sys.argv[1:] if len(sys.argv) > 1 else ["default", "search", "ctx"]
-    for mode in modes:
-        out = subprocess.run(
-            [sys.executable, __file__, "--child", mode],
-            capture_output=True,
-            timeout=60,
-        )
-        if out.returncode != 0 or not out.stdout:
-            print(f"[{mode}] child failed: rc={out.returncode}", file=sys.stderr)
-            if out.stderr:
-                print(out.stderr.decode("utf-8", "replace"), file=sys.stderr)
+    if len(sys.argv) > 2 and sys.argv[1] == "--child":
+        child(sys.argv[2])
+        return 0
+    for mode in ("app", "model", "speed", "quota"):
+        p = subprocess.run([sys.executable, os.path.abspath(__file__),
+                            "--child", mode], capture_output=True)
+        name = f"panel_{mode}.png"
+        if p.returncode != 0:
+            print(f"  {name} 子进程失败:",
+                  p.stderr.decode("utf-8", "replace")[-900:])
             continue
-        out_path = os.path.join(ROOT, "tools", f"panel_preview_{mode}.png")
-        with open(out_path, "wb") as f:
-            f.write(out.stdout)
-        print(f"saved {out_path}")
+        data = p.stdout
+        path = os.path.join(ROOT, "tools", name)
+        with open(path, "wb") as f:
+            f.write(data)
+        ok = data[:4] == b"\x89PNG"
+        print(f"  {name:<20} {len(data):>7} 字节  PNG头={'OK' if ok else 'BAD'}")
     return 0
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--child":
-        child(sys.argv[2])
-    else:
-        sys.exit(main())
+    raise SystemExit(main())
