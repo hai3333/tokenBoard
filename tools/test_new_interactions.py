@@ -51,7 +51,8 @@ def main() -> int:
 
     print("1) 搜索框")
     rect = p._search_rect()
-    check("搜索框在标题栏内", rect[1] >= 0 and rect[1] + rect[3] <= P.TITLE_H,
+    check("搜索框在工具栏内", rect[1] >= P.TOOLBAR_Y and
+          rect[1] + rect[3] <= P.TOOLBAR_Y + P.TOOLBAR_H,
           str(rect))
     check("搜索框初始未聚焦", p._search_focus is False)
     p.on_click(rect[0] + 5, rect[1] + rect[3] / 2)
@@ -63,9 +64,7 @@ def main() -> int:
     check("输入未聚焦时 on_char 不消费", p.on_char("x") is True)
     p.on_key(0x1B)          # Esc via on_key path（搜索聚焦时）
     pump(80)
-    # Esc in on_key only flips focus；再按 Esc 清空走 on_char
-    p._search_focus = True
-    p.on_char("\x1b")
+    # Esc 同时清空搜索词并退出输入态。
     check("Esc 清空搜索词", p._search_q == "")
     check("Esc 退出输入态", p._search_focus is False)
 

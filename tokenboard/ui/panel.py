@@ -75,6 +75,7 @@ BODY_Y = COL_HEAD_Y + COL_HEAD_H + 6
 
 FOOT_H = 32
 FOOT_Y = WIN_H - FOOT_H
+TABLE_FOOT_H = 26       # 列表实际可滚动高度需要扣除合计行
 
 # ---------------------------------------------------------------- 行尺寸
 ROW_MAIN = 46          # 工具行 / 模型行（图标块 + 名称 + 副标题）
@@ -165,7 +166,7 @@ def _relayout(w: float, h: float) -> None:
 
     NAME_X = CONTENT_X + 16 + TILE + 12
     BAR_X = NAME_X + NAME_W + 12
-    BAR_W = max(48, BAR_END - BAR_X)
+    BAR_W = max(0, BAR_END - BAR_X)
     SCROLL_X = w - PAD + 3
 
     # 指标卡：总消耗占大头（里面有趋势线），其余三等分
@@ -354,6 +355,7 @@ class Panel(Window):
         self._ctx_hot = -1          # 菜单项悬停索引
         self._search_q = ""         # 搜索关键字
         self._search_focus = False
+        self._search_collapsed: set[str] = set()  # 搜索结果中手动收起的分组
         # ---- 云同步状态（面板只负责定时触发与展示，网络动作在后台线程）
         self._sync_cfg = None
         self._syncing = False
@@ -464,12 +466,17 @@ class Panel(Window):
                 j += 1
             if match(r):
                 kept.append(r)
-                kept.extend(children)
+                if r.get("open"):
+                    kept.extend(children)
             else:
                 matched = [c for c in children if match(c)]
                 if matched:
+                    # 搜索到收起的子项时自动展开，清空搜索后恢复原有展开状态。
+                    r["search_auto"] = True
+                    r["open"] = r["key"] not in self._search_collapsed
                     kept.append(r)
-                    kept.extend(matched)
+                    if r["open"]:
+                        kept.extend(matched)
             i = j
         self._rows = kept
 
@@ -532,7 +539,7 @@ class Panel(Window):
                     self._cell(fmt_tps(sp.get("tps")), bool(sp.get("tps"))),
                 ],
             })
-            if not open_:
+            if not open_ and not self._search_q.strip():
                 continue
             for m in models:
                 pm = (speed.get("pairs") or {}).get((app, m["key"])) or {}
@@ -582,7 +589,7 @@ class Panel(Window):
                     self._cell(fmt_tps(sp.get("tps")), bool(sp.get("tps"))),
                 ],
             })
-            if not open_:
+            if not open_ and not self._search_q.strip():
                 continue
             for a in apps:
                 pm = (speed.get("pairs") or {}).get((a["app"], key)) or {}
@@ -654,7 +661,7 @@ class Panel(Window):
                     self._cell(f"{n:,}", bool(n), strong=False),
                 ],
             })
-            if not open_:
+            if not open_ and not self._search_q.strip():
                 continue
             for a in per_model.get(key) or []:
                 pm = pairs.get((a["app"], key)) or {}
@@ -872,10 +879,20 @@ class Panel(Window):
                      stroke=TEXT_3, stroke_w=1.2)
         c.line(cx + 3.2, cy + 3.2, cx + 6.4, cy + 6.4, TEXT_3, 1.2)
         # 文本 / 占位
-        txt = self._search_q if self._search_q else "搜索工具 / 模型…"
+        placeholder = "搜索订阅额度…" if self._view_idx == 3 else "搜索工具 / 模型…"
+        txt = self._search_q if self._search_q else placeholder
         col = TEXT if self._search_q else TEXT_3
-        c.text(x + 26, y, w - 36, h, txt, self.f_search, col,
+        text_w = w - (52 if self._search_q else 36)
+        # 输入过长时保留末尾，光标始终可见。
+        if focused and self._search_q:
+            while len(txt) > 1 and c.measure(txt, self.f_search)[0] > text_w - 4:
+                txt = txt[1:]
+        c.text(x + 26, y, text_w, h, txt, self.f_search, col,
                align=DT_L | DT_VC | DT_SL)
+        if focused:
+            caret_x = x + 26 + (c.measure(txt, self.f_search)[0] if self._search_q else 0)
+            c.line(min(caret_x + 1, x + 26 + text_w), y + 8,
+                   min(caret_x + 1, x + 26 + text_w), y + h - 8, ACCENT, 1)
         # 清除按钮
         if self._search_q:
             c.line(x + w - 17, y + h / 2 - 4, x + w - 9, y + h / 2 + 4, TEXT_3, 1.2)
@@ -965,11 +982,18 @@ class Panel(Window):
             self.invalidate()
             return
         if mid == "expand" and row is not None:
-            self._expanded.add(row["key"])
+            if row.get("search_auto"):
+                self._search_collapsed.discard(row["key"])
+            else:
+                self._expanded.add(row["key"])
         elif mid == "collapse" and row is not None:
-            self._expanded.discard(row["key"])
+            if row.get("search_auto"):
+                self._search_collapsed.add(row["key"])
+            else:
+                self._expanded.discard(row["key"])
         elif mid == "filter" and row is not None:
             self._search_q = row.get("name", "")
+            self._search_collapsed.clear()
             self._search_focus = True
         elif mid == "copy" and row is not None:
             self._clipboard(row.get("name", ""))
@@ -1296,19 +1320,24 @@ class Panel(Window):
             uw, _ = c.measure(" " + unit, self.f_kpi_unit)
         if vw + uw > text_w and self.f_kpi_m:
             font = self.f_kpi_m
-        c.text(x + pad, y + 38, text_w, 28, value, font, TEXT,
+            vw, _ = c.measure(value, font)
+        value_w = max(0, text_w - (uw + 4 if unit else 0))
+        c.text(x + pad, y + 38, value_w, 28, value, font, TEXT,
                align=DT_L | DT_VC | DT_SL)
         if unit:
-            c.text(x + pad + min(vw, text_w) + 4, y + 48, 60, 14, unit,
+            unit_x = x + pad + min(vw, value_w) + 4
+            c.text(unit_x, y + 48, max(0, x + w - pad - unit_x), 14, unit,
                    self.f_kpi_unit, TEXT_3, align=DT_L | DT_VC | DT_SL)
 
-        c.text(x + pad, y + 68, text_w, 12, tile["sub1"], self.f_kpi_sub,
+        # 趋势线只占中间区域；两行说明可使用整张卡片的宽度。
+        detail_w = w - pad * 2
+        c.text(x + pad, y + 68, detail_w, 12, tile["sub1"], self.f_kpi_sub,
                TEXT_2, align=DT_L | DT_VC | DT_SL)
-        c.text(x + pad, y + 80, text_w, 12, tile["sub2"], self.f_kpi_sub,
+        c.text(x + pad, y + 80, detail_w, 12, tile["sub2"], self.f_kpi_sub,
                TEXT_3, align=DT_L | DT_VC | DT_SL)
 
         if spark:
-            self._draw_spark(c, x + w - 84, y + 30, 70, 40)
+            self._draw_spark(c, x + w - 84, y + 39, 70, 24)
 
     def _draw_spark(self, c: Canvas, x, y, w, h):
         vals = self._spark
@@ -1321,7 +1350,7 @@ class Panel(Window):
         base = y + h
         pts = []
         for i, v in enumerate(vals):
-            px = x + w * i / (n - 1)
+            px = x + w * i / max(1, n - 1)
             py = base - (h - 4) * (v / mx)
             pts.append((px, py))
 
@@ -1355,16 +1384,25 @@ class Panel(Window):
     def _visible_count(self) -> int:
         used = 0
         n = 0
-        for r in self._rows:
+        for r in self._rows[self._scroll:]:
             h = self._row_height(r)
-            if used + h > BODY_H:
+            if used + h > BODY_H - TABLE_FOOT_H:
                 break
             used += h
             n += 1
         return max(1, n)
 
     def _max_scroll(self) -> int:
-        return max(0, len(self._rows) - self._visible_count())
+        # 从最后一行向前装满可视区域；展开后的行高并不一致。
+        used = 0
+        start = len(self._rows)
+        for i in range(len(self._rows) - 1, -1, -1):
+            h = self._row_height(self._rows[i])
+            if used + h > BODY_H - TABLE_FOOT_H:
+                break
+            used += h
+            start = i
+        return min(start, max(0, len(self._rows) - 1))
 
     def _scroll_base(self) -> float:
         if not self._row_y:
@@ -1377,10 +1415,15 @@ class Panel(Window):
         return (CARD_X + 4, y, CARD_W - 8, self._row_height(self._rows[i]))
 
     def _row_at(self, x: float, y: float) -> int:
-        for i, row in enumerate(self._rows):
+        if self._view_idx == 3 or not (BODY_Y <= y < BODY_Y + BODY_H - TABLE_FOOT_H):
+            return -1
+        for i in range(self._scroll, len(self._rows)):
+            row = self._rows[i]
+            rx, ry, rw, rh = self._row_rect(i)
+            if ry + rh > BODY_Y + BODY_H - TABLE_FOOT_H:
+                break
             if row["kind"] in ("sub", "ssub"):
                 continue
-            rx, ry, rw, rh = self._row_rect(i)
             if ry <= y < ry + rh and rx <= x < rx + rw:
                 return i
         return -1
@@ -1394,17 +1437,23 @@ class Panel(Window):
                 hint = "本期没有用量"
             else:
                 hint = "本期还没有速度采样"
-            c.text(CONTENT_X, BODY_Y + 22, CONTENT_W, 20, hint, self.f_small,
-                   TEXT_3, align=DT_L | DT_VC | DT_SL)
-            if self._view_idx == 2:
-                c.text(CONTENT_X, BODY_Y + 44, CONTENT_W, 20,
-                       "首字来自 Codex / OpenCode，吞吐来自 OpenCode / DSH / ZCode",
-                       self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
+            card_top = COL_HEAD_Y - 8
+            self._card(c, CARD_X, card_top, CARD_W, 126, 12)
+            c.text(CARD_X + 20, card_top + 34, CARD_W - 40, 22,
+                   hint, self.f_name, TEXT_2, align=DT_C | DT_VC | DT_SL)
+            if self._search_q:
+                detail = "试试其他关键词，或点击搜索框右侧的 × 清除"
+            elif self._view_idx == 2:
+                detail = "首字来自 Codex / OpenCode，吞吐来自 OpenCode / DSH / ZCode"
+            else:
+                detail = "切换时间范围，或点击刷新获取最新用量"
+            c.text(CARD_X + 20, card_top + 62, CARD_W - 40, 18, detail,
+                   self.f_small, TEXT_3, align=DT_C | DT_VC | DT_SL)
             return
 
         self._scroll = max(0, min(self._scroll, self._max_scroll()))
         base = self._scroll_base()
-        footer_h = 26                     # 卡片底部的「合计」行
+        footer_h = TABLE_FOOT_H
         bottom = BODY_Y + BODY_H - footer_h
 
         # 先算这一屏画得下几行：列表卡片按内容高度收紧，
@@ -1438,6 +1487,10 @@ class Panel(Window):
         left_head = "工具" if self._view_idx == 0 else "模型"
         c.text(NAME_X, COL_HEAD_Y, 200, COL_HEAD_H, left_head, self.f_head,
                TEXT_3, align=DT_L | DT_VC | DT_SL)
+        if BAR_W >= 70:
+            c.text(BAR_X, COL_HEAD_Y, BAR_W, COL_HEAD_H,
+                   "相对速度" if self._view_idx == 2 else "相对用量",
+                   self.f_head, TEXT_3, align=DT_L | DT_VC | DT_SL)
         for i, label in enumerate(cols):
             c.text(COL_X[i], COL_HEAD_Y, COL_W[i], COL_HEAD_H, label,
                    self.f_head, TEXT_3, align=DT_R | DT_VC | DT_SL)
@@ -1476,7 +1529,8 @@ class Panel(Window):
         # （只数主行，展开出来的模型子行不算）
         unit = "个工具" if self._view_idx == 0 else "个模型"
         n_main = sum(1 for r in self._rows if r["kind"] in ("app", "model", "srow"))
-        label = f"合计 · {n_main} {unit}"
+        label = (f"全部合计 · 匹配 {n_main} 项" if self._search_q.strip()
+                 else f"合计 · {n_main} {unit}")
         lw, _ = c.measure(label, self.f_meta)
         c.text(NAME_X, y + 5, 200, 16, label,
                self.f_meta, TEXT_3, align=DT_L | DT_VC | DT_SL)
@@ -1611,9 +1665,10 @@ class Panel(Window):
 
             # 名称 + 展开箭头
             nw, _ = c.measure(row["name"], self.f_name)
-            c.text(NAME_X, y + 6, min(NAME_W, nw + 2), 17, row["name"],
+            name_w = max(0, min(NAME_W - 18, BAR_END - NAME_X - 18))
+            c.text(NAME_X, y + 6, min(name_w, nw + 2), 17, row["name"],
                    self.f_name, TEXT, align=DT_L | DT_VC | DT_SL)
-            c.text(NAME_X + nw + 7, y + 6, 14, 17,
+            c.text(NAME_X + min(nw, name_w) + 5, y + 6, 14, 17,
                    DISCLOSURE_OPEN if row.get("open") else DISCLOSURE_CLOSED,
                    self.f_tiny, TEXT_3, align=DT_L | DT_VC | DT_SL)
             if row.get("sub"):
@@ -1621,6 +1676,11 @@ class Panel(Window):
                        self.f_name_sub, TEXT_3, align=DT_L | DT_VC | DT_SL)
             cy, chh = y + 6, 17
             font = self.f_cell
+            if BAR_W >= 70 and row.get("bar", 0) > 0:
+                ratio = min(1.0, max(0.0, row["bar"]))
+                c.round_rect(BAR_X, y + h / 2 - 2, BAR_W, 4, 2, fill=TRACK)
+                c.round_rect(BAR_X, y + h / 2 - 2, max(3, BAR_W * ratio),
+                             4, 2, fill=mix(SURFACE, color, 0.72))
             # 行底一条极淡的分隔线（最后一行贴着卡片边，不画）
             if not last:
                 c.line(CARD_X + 14, y + h - 1, CARD_X + CARD_W - 14,
@@ -1656,7 +1716,11 @@ class Panel(Window):
     def _quota_blocks(self) -> list[tuple[dict, float]]:
         """返回 [(额度项, 卡片高度)]，高度随限额条数和提示行数变化。"""
         out = []
+        query = self._search_q.strip().lower()
         for q in (self._quota or []):
+            if query and not any(query in str(q.get(field, "") or "").lower()
+                                 for field in ("name", "provider", "note", "error", "hint")):
+                continue
             wins = q.get("windows") or []
             if wins:
                 h = 26 + len(wins) * 40 + 12
@@ -1668,8 +1732,10 @@ class Panel(Window):
     def _draw_quota(self, c: Canvas):
         blocks = self._quota_blocks()
         if not blocks:
-            self._card(c, CONTENT_X, QUOTA_Y, QUOTA_W, 64, 12)
-            c.text(CONTENT_X + 18, QUOTA_Y + 22, QUOTA_W - 36, 20, "正在获取订阅额度…",
+            self._card(c, CONTENT_X, QUOTA_Y, QUOTA_W, 84, 12)
+            hint = (f"没有匹配「{self._search_q}」的订阅额度" if self._search_q.strip()
+                    else "正在获取订阅额度…")
+            c.text(CONTENT_X + 18, QUOTA_Y + 24, QUOTA_W - 36, 20, hint,
                    self.f_meta, TEXT_3, align=DT_L | DT_VC | DT_SL)
             return
 
@@ -1795,30 +1861,35 @@ class Panel(Window):
             self._dot_hit.append((app, x, yy, 12 + tw + 4))
             x += 12 + tw + 14
 
-        # 右侧：更新时刻 + 云同步状态（云同步在前，时间贴右）
-        upd_w = 220
+        # 右侧状态只占剩余空间，窄窗口中不能盖住采集源快捷入口。
+        right = WIN_W - PAD
+        available = max(0.0, right - x - 10)
+        msg = self._footer_msg()
+        msg_w, _ = c.measure(msg, self.f_small)
+        upd_w = min(available, max(90, msg_w + 8))
         sync_w = 0.0
         if self._sync_note:
             sw, _ = c.measure(self._sync_note, self.f_tiny)
-            sync_w = sw + 8
-            c.text(WIN_W - PAD - upd_w - sync_w, yy + 1, sync_w, 16,
-                   self._sync_note, self.f_tiny,
-                   DANGER if self._sync_failed else TEXT_3,
-                   align=DT_R | DT_VC | DT_SL)
+            if available >= upd_w + sw + 18:
+                sync_w = sw + 8
+                c.text(right - upd_w - sync_w, yy + 1, sync_w, 16,
+                       self._sync_note, self.f_tiny,
+                       DANGER if self._sync_failed else TEXT_3,
+                       align=DT_R | DT_VC | DT_SL)
         # 快捷键提示（小号暗字）：贴在云同步状态左侧；空间不够不画
         hint = "1-4 切视图 · 滚轮 · R 刷新"
         hw, _ = c.measure(hint, self.f_tiny)
-        hint_x = WIN_W - PAD - upd_w - sync_w - 10 - hw
+        hint_x = right - upd_w - sync_w - 10 - hw
         if hint_x > x + 10:
             # 宽度多给 6px：DT_CALCRECT 量出来的比实际排字略窄，
             # 按 hw 画会被 DT_END_ELLIPSIS 截掉最后一个字（"R 刷..."）。
             c.text(hint_x, yy + 1, hw + 6, 16, hint, self.f_tiny, TEXT_3,
                    align=DT_L | DT_VC | DT_SL)
         # 右侧：更新时刻，前面加一个极小的状态灯（有错就变红）
-        msg = self._footer_msg()
         col = DANGER if self._status_error else TEXT_3
-        c.text(WIN_W - PAD - upd_w, yy + 1, upd_w, 16, msg, self.f_small, col,
-               align=DT_R | DT_VC | DT_SL)
+        if upd_w > 0:
+            c.text(right - upd_w, yy + 1, upd_w, 16, msg, self.f_small, col,
+                   align=DT_R | DT_VC | DT_SL)
 
     def _footer_msg(self) -> str:
         if self._status_error:
@@ -1828,6 +1899,9 @@ class Panel(Window):
     def _jump_to_app(self, app: str) -> None:
         """点状态点：切到「按工具」视图，展开该工具并滚到它那一行。"""
         self._view_idx = 0
+        self._search_q = ""
+        self._search_focus = False
+        self._search_collapsed.clear()
         self._expanded.add(app)
         self._load()
         for i, row in enumerate(self._rows):
@@ -1879,12 +1953,19 @@ class Panel(Window):
                 self._ctx_items = []
                 self.invalidate()
             return
-        # 标题栏：搜索框命中优先，其次窗口按钮
+        # 搜索位于工具栏，必须先处理点击，才能正确进入输入态或清除关键词。
+        if self._search_box_at(x, y):
+            sx, sy, sw, sh = self._search_rect()
+            if self._search_q and x >= sx + sw - 25:
+                self._search_q = ""
+                self._search_collapsed.clear()
+                self._scroll = 0
+                self._quota_scroll = 0
+            self._search_focus = True
+            self.invalidate()
+            return
+        # 标题栏按钮
         if y < TITLE_H:
-            if self._search_box_at(x, y):
-                self._search_focus = not self._search_focus
-                self.invalidate()
-                return
             if self._search_focus:
                 self._search_focus = False
                 self.invalidate()
@@ -1933,14 +2014,17 @@ class Panel(Window):
                     self._scroll = 0
                     self.invalidate()
                 return
-        # 表格行：点主行展开/收起（额度视图没有表格，别去碰上一屏残留的行）
-        # 额度视图没有表格，别去碰上一屏残留的行）
-        if self._view_idx == 3:
-            return
+        # 表格行：点主行展开/收起；额度视图的 _row_at 会直接返回 -1。
         i = self._row_at(x, y)
         if i >= 0:
-            key = self._rows[i]["key"]
-            if key in self._expanded:
+            row = self._rows[i]
+            key = row["key"]
+            if row.get("search_auto"):
+                if row.get("open"):
+                    self._search_collapsed.add(key)
+                else:
+                    self._search_collapsed.discard(key)
+            elif key in self._expanded:
                 self._expanded.discard(key)
             else:
                 self._expanded.add(key)
@@ -2003,9 +2087,13 @@ class Panel(Window):
     def on_key(self, key: int) -> None:
         """键盘：↑↓/PgUp/PgDn/Home/End 滚动，1-4 切视图；R 手动刷新。"""
         if self._search_focus:
-            # 搜索输入中：Esc 退出，其余按键交给 on_char
+            # 搜索输入中：Esc 清空并退出，其余按键交给 on_char。
             if key == 0x1B:
+                self._search_q = ""
+                self._search_collapsed.clear()
                 self._search_focus = False
+                self._scroll = 0
+                self._quota_scroll = 0
                 self.invalidate()
             return
         if key == 0x52:                            # 'R' 手动扫描刷新
@@ -2082,6 +2170,7 @@ class Panel(Window):
         """搜索框输入。返回 True 表示已消费。"""
         if not self._search_focus:
             return False
+        old_query = self._search_q
         if ch == "\x08":                       # Backspace
             self._search_q = self._search_q[:-1]
         elif ch == "\r" or ch == "\n":        # Enter：收起键盘焦点，保留过滤词
@@ -2092,7 +2181,10 @@ class Panel(Window):
         elif ch.isprintable():
             if len(self._search_q) < 48:
                 self._search_q += ch
+        if self._search_q != old_query:
+            self._search_collapsed.clear()
         self._scroll = 0
+        self._quota_scroll = 0
         self.invalidate()
         return True
 

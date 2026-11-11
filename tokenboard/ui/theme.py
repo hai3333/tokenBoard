@@ -6,7 +6,7 @@
   亮色是白灰层级（#F7F7F8 → #FFFFFF → #F4F4F5），层次都靠「亮度差 + 1px 描边」。
 * **单一强调色** #0FB77F（emerald）：主按钮、选中态、正向趋势、焦点边框。
 * **彩色图标块**：列表每行的品牌色方块，颜色是「身份标识」而不是装饰。
-* **文字三级**：主 / 次 / 弱，亮色下把弱文字压到 #8A8A93 保证对比度。
+* **文字三级**：主 / 次 / 弱，深浅主题都保证弱文字有足够的对比度。
 
 运行时切换
 ----------
@@ -36,7 +36,7 @@ DARK: dict[str, str] = {
     "LINE_2": "#3D3D3D",        # 控件边框
     "TEXT": "#F5F5F5",
     "TEXT_2": "#C4C0C8",
-    "TEXT_3": "#8F8C93",
+    "TEXT_3": "#A5A2AA",
     "ACCENT": "#0FB77F",
     "ACCENT_HOVER": "#14C68A",
     "ACCENT_DIM": "#0B9B69",
@@ -70,11 +70,11 @@ LIGHT: dict[str, str] = {
     "LINE_2": "#D8D8DE",
     "TEXT": "#18181B",
     "TEXT_2": "#52525B",
-    "TEXT_3": "#8A8A93",
+    "TEXT_3": "#686B73",
     "ACCENT": "#0FB77F",
     "ACCENT_HOVER": "#12C68A",
     "ACCENT_DIM": "#0B9B69",
-    "ON_ACCENT": "#FFFFFF",
+    "ON_ACCENT": "#06231A",
     "OK": "#0B9B69",
     "WARN": "#C2740A",
     "DANGER": "#DC2626",
