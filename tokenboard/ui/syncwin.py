@@ -56,7 +56,11 @@ CARD_PAD = 14
 HEAD_H = 20
 LBL_H = 13
 FIELD_H = 28
-EDIT_H_MIN = 10
+EDIT_H_MIN = 14
+# 原生单行 EDIT 的文字是垂直居中的，控件高度只按「字高 + 行外距」给的话，
+# 下划线（_）这种画在基线以下的下伸笔画会被底边裁掉 —— 密码里带下划线就
+# 成了「看不见」。这里统一多留几像素。
+EDIT_H_PAD = 6
 EDIT_INSET_X = 8
 ROW_STEP = 52
 BAR_H = 56
@@ -233,7 +237,9 @@ class SyncWindow(Window):
                            ("pass", self.f_value), ("dir", self.f_mono),
                            ("interval", self.f_mono)):
             th, el = font.metrics(self.scale)
-            self._edit_h[name] = max(EDIT_H_MIN, int(round((th + el) / self.scale)))
+            self._edit_h[name] = max(
+                EDIT_H_MIN,
+                int(round((th + el) / self.scale)) + EDIT_H_PAD)
         self._apply_edits()
 
     def _apply_edits(self):
