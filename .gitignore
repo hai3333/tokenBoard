@@ -21,3 +21,6 @@ tools/_mini.txt
 # 编辑器
 .vscode/
 .idea/
+# 构建输出 (txt)
+build_*.txt
+
