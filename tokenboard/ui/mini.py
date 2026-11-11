@@ -1,7 +1,7 @@
 """常驻桌面的小框（桌面挂件）。
 
 设计:
-* 240x80 的小卡片，置顶常驻在工作区右下角，不占任务栏。
+* 240x120 的小卡片，置顶常驻在工作区右下角，不占任务栏。
 * 半透明（WS_EX_LAYERED + 整体 alpha）：浮在桌面上像张贴纸，不像块实心板子。
 * 配色跟主面板走（中性炭黑 + emerald，同样支持明暗切换）。
 * 顶部一条是拖动区（按住能把小框挪走），其余地方点一下展开主面板 ——
@@ -20,7 +20,8 @@ from ctypes import wintypes
 from datetime import datetime, timedelta
 
 from ..config import APP_META, WIDGET_STATE_PATH, app_color
-from .theme import ACCENT, BASE, LINE_2, SURFACE, TEXT, TEXT_2, TEXT_3, mix
+from ..proxy_monitor import ProxyMonitor
+from .theme import ACCENT, BASE, LINE, LINE_2, SURFACE, TEXT, TEXT_2, TEXT_3, WARN, mix
 from . import theme as theme_mod
 from .win32 import (DT_CENTER as DT_C, DT_LEFT as DT_L, DT_RIGHT as DT_R,
                     DT_SINGLELINE, DT_SINGLELINE as DT_SL,
@@ -29,7 +30,7 @@ from .win32 import (DT_CENTER as DT_C, DT_LEFT as DT_L, DT_RIGHT as DT_R,
                     WS_EX_TOPMOST, WS_PLAIN, user32)
 
 MINI_W = 240
-MINI_H = 80
+MINI_H = 120
 DRAG_H = 26          # 顶部这一条是拖动区
 PAD = 12
 REFRESH_MS = 1500
@@ -53,7 +54,7 @@ class MiniBar(Window):
                          class_name="TokenBoardMini",
                          style=WS_PLAIN,
                          ex_style=WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED)
-        # 小框就是 240x80，基类的最小尺寸（620x420）是给主面板用的。
+        # 小框有自己的最小尺寸；基类的 620x420 是给主面板用的。
         # 不改的话，窗口创建/拖动时会被最小尺寸钳制撑成一大块底板。
         self.min_width = MINI_W
         self.min_height = MINI_H
@@ -66,6 +67,7 @@ class MiniBar(Window):
         self._spark: list[float] = []
         self._apps: list[str] = []
         self._top3: list[tuple[str, int]] = []   # 今天用量前三（图标 + Token 数）
+        self._proxy_monitor = ProxyMonitor()
         self._hover = False
         self._pos = self._read_state()
         self._saved_pos: tuple[int, int] | None = None   # 已落盘的位置
@@ -183,8 +185,13 @@ class MiniBar(Window):
         self.create()
         self.set_timer(REFRESH_MS, 1)
         self._load()
+        self._proxy_monitor.start()
         self.show()
         self.set_topmost(True)
+
+    def destroy(self):
+        self._proxy_monitor.close()
+        super().destroy()
 
     def _load(self):
         """查今天的总量/请求数/成本 + 近 30 天每日消耗。"""
@@ -265,13 +272,31 @@ class MiniBar(Window):
         # 工具圆点：用各家的品牌色，和列表图标块同一套识别色
         for i, app in enumerate(self._apps[:8]):
             cx = PAD + i * DOT_GAP
-            c.ellipse(cx, MINI_H - 14, DOT_R * 2, DOT_R * 2, fill=app_color(app))
+            c.ellipse(cx, 66, DOT_R * 2, DOT_R * 2, fill=app_color(app))
 
         # 右侧小箭头：提示「点一下能展开主面板」
         cx = MINI_W - PAD - 6
         cy = 31
         c.polyline([(cx - 3, cy - 4), (cx + 1, cy), (cx - 3, cy + 4)],
                    TEXT_3, 1.2)
+
+        # 只统计经过 openAI 策略组的活动连接；无接口或采样失败时显示原因。
+        net = self._proxy_monitor.snapshot()
+        c.line(PAD, 76, MINI_W - PAD, 76, LINE)
+        c.ellipse(PAD, 83, 6, 6, ACCENT if net.status == "正常" else WARN)
+        c.text(PAD + 11, 78, 68, 16, "OpenAI 线路", self.f_meta, TEXT_2,
+               align=DT_L | DT_VC | DT_SL)
+        status = (net.selected or "采样中") if net.status == "正常" else net.status
+        c.text(PAD + 82, 78, MINI_W - PAD * 2 - 82, 16, status,
+               self.f_meta, TEXT_3, align=DT_R | DT_VC | DT_SL)
+        delay = f"{net.delay_ms}ms" if net.delay_ms is not None else "—"
+        c.text(PAD, 97, 76, 17, f"延迟 {delay}", self.f_meta, TEXT,
+               align=DT_L | DT_VC | DT_SL)
+        c.text(PAD + 80, 97, 65, 17, "↑ " + fmt_rate(net.upload_bps),
+               self.f_tiny, TEXT_2, align=DT_L | DT_VC | DT_SL)
+        c.text(PAD + 147, 97, MINI_W - PAD * 2 - 147, 17,
+               "↓ " + fmt_rate(net.download_bps), self.f_tiny, TEXT_2,
+               align=DT_R | DT_VC | DT_SL)
 
     def _draw_spark(self, c: Canvas, x, y, w, h):
         vals = self._spark
@@ -284,7 +309,7 @@ class MiniBar(Window):
         base = y + h
         pts = []
         for i, v in enumerate(vals):
-            px = x + w * i / (n - 1)
+            px = x + w * i / max(1, n - 1)
             py = base - (h - 2) * (v / mx)
             pts.append((px, py))
         # 面积（深色界面没有 alpha 通道，用一条一条的横带逼近渐变）
@@ -366,6 +391,17 @@ def fmt_compact(n: int) -> str:
             v = n / div
             return f"{v:.1f}{unit}" if v < 100 else f"{v:.0f}{unit}"
     return f"{n:.0f}"
+
+
+def fmt_rate(value: float | None) -> str:
+    """实时速率：B/s，按二进制单位缩写。"""
+    if value is None:
+        return "—"
+    value = max(0.0, value)
+    for unit in ("B/s", "KB/s", "MB/s", "GB/s"):
+        if value < 1024 or unit == "GB/s":
+            return f"{value:.1f}{unit}" if value < 10 and unit != "B/s" else f"{value:.0f}{unit}"
+        value /= 1024
 
 
 def fmt_mini_money(usd: float) -> str:
