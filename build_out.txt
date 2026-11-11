@@ -1,0 +1,26 @@
+
+==> 生成图标
+wrote D:\个人资料\项目\token看板\build\tokenboard.ico 6533 bytes
+
+==> 打包免安装单文件版（dist\portable\TokenBoard.exe）
+
+==> 打包应用目录版（dist\TokenBoard\）
+
+==> 打包单文件安装器（TokenBoard-Setup-1.0.0.exe）
+
+==> 生成免安装 ZIP
+=== 产物 ===
+  TokenBoard-Setup-1.0.0.exe           18.95 MB
+  TokenBoard-Setup.exe                  1.55 MB
+  TokenBoard-1.0.0-portable.zip         9.88 MB
+
+==> 完成
+TokenBoard-1.0.0-portable.zip                9.88 MB
+TokenBoard-Setup-1.0.0.exe                  18.95 MB
+portable\TokenBoard.exe                     10.01 MB
+TokenBoard\TokenBoard.exe                    1.97 MB
+TokenBoard\_internal\base_library.zip        1.27 MB
+TokenBoard-Setup\TokenBoard-Setup.exe        1.55 MB
+TokenBoard-Setup\_internal\base_library.zip     1.27 MB
+TokenBoard-Setup\_internal\payload\TokenBoard.exe     1.75 MB
+TokenBoard-Setup\_internal\payload\_internal\base_library.zip     1.27 MB

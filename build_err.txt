@@ -1,0 +1,219 @@
+2015 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.9
+2017 INFO: Python: 3.12.4 (conda)
+2080 INFO: Platform: Windows-11-10.0.26300-SP0
+2083 INFO: Python environment: D:\software\anaconda3
+2091 INFO: Removing temporary files and cleaning cache in C:\Users\17398\AppData\Local\pyinstaller
+2123 INFO: Module search paths (PYTHONPATH):
+['D:\\个人资料\\项目\\token看板',
+ 'D:\\software\\anaconda3\\python312.zip',
+ 'D:\\software\\anaconda3\\DLLs',
+ 'D:\\software\\anaconda3\\Lib',
+ 'D:\\software\\anaconda3',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32\\lib',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pythonwin',
+ 'D:\\software\\anaconda3\\Lib\\site-packages',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32\\lib',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\Pythonwin',
+ 'D:\\个人资料\\项目\\token看板']
+4483 INFO: Appending 'datas' from .spec
+4486 INFO: checking Analysis
+4486 INFO: Building Analysis because Analysis-00.toc is non existent
+4486 INFO: Looking for Python shared library...
+4487 INFO: Using Python shared library: D:\software\anaconda3\python312.dll
+4487 INFO: Running Analysis Analysis-00.toc
+4487 INFO: Target bytecode optimization level: 0
+4487 INFO: Initializing module dependency graph...
+4488 INFO: Initializing module graph hook caches...
+4562 INFO: Analyzing modules for base_library.zip ...
+9750 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+9853 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+12594 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+12810 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+14515 INFO: Caching module dependency graph...
+14586 INFO: Analyzing D:\个人资料\项目\token看板\run_gui.py
+14693 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+14778 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+16489 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+16993 INFO: Processing module hooks (post-graph stage)...
+17017 INFO: Performing binary vs. data reclassification (2 entries)
+17022 INFO: Looking for ctypes DLLs
+17051 INFO: Analyzing run-time hooks ...
+17053 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks\\rthooks'
+17060 INFO: Creating base_library.zip...
+17099 INFO: Looking for dynamic libraries
+17102 WARNING: get_package_paths - package pywin32_system32 has multiple paths (['C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\pywin32_system32', 'D:\\software\\anaconda3\\Lib\\site-packages\\pywin32_system32']); returning only first one!
+17288 INFO: Extra DLL search directories (AddDllDirectory): []
+17290 INFO: Extra DLL search directories (PATH): []
+17932 INFO: Warnings written to D:\个人资料\项目\token看板\build\portable\tokenboard_onefile\warn-tokenboard_onefile.txt
+17951 INFO: Graph cross-reference written to D:\个人资料\项目\token看板\build\portable\tokenboard_onefile\xref-tokenboard_onefile.html
+17984 INFO: checking PYZ
+17985 INFO: Building PYZ because PYZ-00.toc is non existent
+17986 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\portable\tokenboard_onefile\PYZ-00.pyz
+18131 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\portable\tokenboard_onefile\PYZ-00.pyz completed successfully.
+18144 INFO: checking PKG
+18145 INFO: Building PKG because PKG-00.toc is non existent
+18145 INFO: Building PKG (CArchive) TokenBoard.pkg
+20528 INFO: Building PKG (CArchive) TokenBoard.pkg completed successfully.
+20532 INFO: Bootloader C:\Users\17398\AppData\Roaming\Python\Python312\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+20532 INFO: checking EXE
+20533 INFO: Building EXE because EXE-00.toc is non existent
+20533 INFO: Building EXE from EXE-00.toc
+20537 INFO: Copying bootloader EXE to D:\个人资料\项目\token看板\dist\portable\TokenBoard.exe
+20547 INFO: Copying icon to EXE
+20557 INFO: Copying version information to EXE
+20565 INFO: Copying 0 resources to EXE
+20565 INFO: Embedding manifest in EXE
+20573 INFO: Appending PKG archive to EXE
+20584 INFO: Fixing EXE headers
+20698 INFO: Building EXE from EXE-00.toc completed successfully.
+20701 INFO: Build complete! The results are available in: D:\个人资料\项目\token看板\dist\portable
+1323 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.9
+1325 INFO: Python: 3.12.4 (conda)
+1374 INFO: Platform: Windows-11-10.0.26300-SP0
+1376 INFO: Python environment: D:\software\anaconda3
+1380 INFO: Removing temporary files and cleaning cache in C:\Users\17398\AppData\Local\pyinstaller
+1399 INFO: Module search paths (PYTHONPATH):
+['D:\\个人资料\\项目\\token看板',
+ 'D:\\software\\anaconda3\\python312.zip',
+ 'D:\\software\\anaconda3\\DLLs',
+ 'D:\\software\\anaconda3\\Lib',
+ 'D:\\software\\anaconda3',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32\\lib',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pythonwin',
+ 'D:\\software\\anaconda3\\Lib\\site-packages',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32\\lib',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\Pythonwin',
+ 'D:\\个人资料\\项目\\token看板']
+3077 INFO: Appending 'datas' from .spec
+3083 INFO: checking Analysis
+3083 INFO: Building Analysis because Analysis-00.toc is non existent
+3083 INFO: Looking for Python shared library...
+3084 INFO: Using Python shared library: D:\software\anaconda3\python312.dll
+3084 INFO: Running Analysis Analysis-00.toc
+3084 INFO: Target bytecode optimization level: 0
+3084 INFO: Initializing module dependency graph...
+3086 INFO: Initializing module graph hook caches...
+3103 INFO: Analyzing modules for base_library.zip ...
+8051 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+8157 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+11012 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+11341 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+13249 INFO: Caching module dependency graph...
+13328 INFO: Analyzing D:\个人资料\项目\token看板\run_gui.py
+13450 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+13543 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+15452 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+16074 INFO: Processing module hooks (post-graph stage)...
+16104 INFO: Performing binary vs. data reclassification (2 entries)
+16107 INFO: Looking for ctypes DLLs
+16140 INFO: Analyzing run-time hooks ...
+16143 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks\\rthooks'
+16150 INFO: Creating base_library.zip...
+16170 INFO: Looking for dynamic libraries
+16174 WARNING: get_package_paths - package pywin32_system32 has multiple paths (['C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\pywin32_system32', 'D:\\software\\anaconda3\\Lib\\site-packages\\pywin32_system32']); returning only first one!
+16359 INFO: Extra DLL search directories (AddDllDirectory): []
+16361 INFO: Extra DLL search directories (PATH): []
+16885 INFO: Warnings written to D:\个人资料\项目\token看板\build\tokenboard\warn-tokenboard.txt
+16910 INFO: Graph cross-reference written to D:\个人资料\项目\token看板\build\tokenboard\xref-tokenboard.html
+16930 INFO: checking PYZ
+16932 INFO: Building PYZ because PYZ-00.toc is non existent
+16933 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\tokenboard\PYZ-00.pyz
+17082 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\tokenboard\PYZ-00.pyz completed successfully.
+17090 INFO: checking PKG
+17090 INFO: Building PKG because PKG-00.toc is non existent
+17090 INFO: Building PKG (CArchive) TokenBoard.pkg
+17111 INFO: Building PKG (CArchive) TokenBoard.pkg completed successfully.
+17113 INFO: Bootloader C:\Users\17398\AppData\Roaming\Python\Python312\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+17113 INFO: checking EXE
+17113 INFO: Building EXE because EXE-00.toc is non existent
+17113 INFO: Building EXE from EXE-00.toc
+17114 INFO: Copying bootloader EXE to D:\个人资料\项目\token看板\build\tokenboard\TokenBoard.exe
+17125 INFO: Copying icon to EXE
+17132 INFO: Copying version information to EXE
+17141 INFO: Copying 0 resources to EXE
+17141 INFO: Embedding manifest in EXE
+17148 INFO: Appending PKG archive to EXE
+17152 INFO: Fixing EXE headers
+17219 INFO: Building EXE from EXE-00.toc completed successfully.
+17222 INFO: checking COLLECT
+17223 INFO: Building COLLECT because COLLECT-00.toc is non existent
+17224 INFO: Removing dir D:\个人资料\项目\token看板\dist\TokenBoard
+17308 INFO: Building COLLECT COLLECT-00.toc
+17455 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+17463 INFO: Build complete! The results are available in: D:\个人资料\项目\token看板\dist
+1390 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.9
+1396 INFO: Python: 3.12.4 (conda)
+1461 INFO: Platform: Windows-11-10.0.26300-SP0
+1463 INFO: Python environment: D:\software\anaconda3
+1468 INFO: Removing temporary files and cleaning cache in C:\Users\17398\AppData\Local\pyinstaller
+1502 INFO: Module search paths (PYTHONPATH):
+['D:\\个人资料\\项目\\token看板',
+ 'D:\\software\\anaconda3\\python312.zip',
+ 'D:\\software\\anaconda3\\DLLs',
+ 'D:\\software\\anaconda3\\Lib',
+ 'D:\\software\\anaconda3',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32\\lib',
+ 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pythonwin',
+ 'D:\\software\\anaconda3\\Lib\\site-packages',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\win32\\lib',
+ 'D:\\software\\anaconda3\\Lib\\site-packages\\Pythonwin',
+ 'D:\\个人资料\\项目\\token看板\\installer',
+ 'D:\\个人资料\\项目\\token看板']
+3427 INFO: Appending 'datas' from .spec
+3438 INFO: checking Analysis
+3439 INFO: Building Analysis because Analysis-00.toc is non existent
+3439 INFO: Looking for Python shared library...
+3439 INFO: Using Python shared library: D:\software\anaconda3\python312.dll
+3439 INFO: Running Analysis Analysis-00.toc
+3440 INFO: Target bytecode optimization level: 0
+3440 INFO: Initializing module dependency graph...
+3441 INFO: Initializing module graph hook caches...
+3469 INFO: Analyzing modules for base_library.zip ...
+10614 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+10622 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+13199 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+14223 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks'
+16204 INFO: Caching module dependency graph...
+16278 INFO: Analyzing D:\个人资料\项目\token看板\installer\setup_main.py
+16304 INFO: Processing module hooks (post-graph stage)...
+16312 INFO: Performing binary vs. data reclassification (68 entries)
+16410 INFO: Looking for ctypes DLLs
+16415 INFO: Analyzing run-time hooks ...
+16416 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks\\rthooks'
+16424 INFO: Creating base_library.zip...
+16449 INFO: Looking for dynamic libraries
+16457 WARNING: get_package_paths - package pywin32_system32 has multiple paths (['C:\\Users\\17398\\AppData\\Roaming\\Python\\Python312\\site-packages\\pywin32_system32', 'D:\\software\\anaconda3\\Lib\\site-packages\\pywin32_system32']); returning only first one!
+16576 INFO: Extra DLL search directories (AddDllDirectory): []
+16578 INFO: Extra DLL search directories (PATH): []
+18104 INFO: Warnings written to D:\个人资料\项目\token看板\build\setup_onefile\warn-setup_onefile.txt
+18131 INFO: Graph cross-reference written to D:\个人资料\项目\token看板\build\setup_onefile\xref-setup_onefile.html
+18162 INFO: checking PYZ
+18164 INFO: Building PYZ because PYZ-00.toc is non existent
+18164 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\setup_onefile\PYZ-00.pyz
+18312 INFO: Building PYZ (ZlibArchive) D:\个人资料\项目\token看板\build\setup_onefile\PYZ-00.pyz completed successfully.
+18328 INFO: checking PKG
+18328 INFO: Building PKG because PKG-00.toc is non existent
+18328 INFO: Building PKG (CArchive) TokenBoard-Setup-1.0.0.pkg
+24114 INFO: Building PKG (CArchive) TokenBoard-Setup-1.0.0.pkg completed successfully.
+24117 INFO: Bootloader C:\Users\17398\AppData\Roaming\Python\Python312\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+24118 INFO: checking EXE
+24118 INFO: Building EXE because EXE-00.toc is non existent
+24118 INFO: Building EXE from EXE-00.toc
+24119 INFO: Copying bootloader EXE to D:\个人资料\项目\token看板\dist\TokenBoard-Setup-1.0.0.exe
+24131 INFO: Copying icon to EXE
+24139 INFO: Copying version information to EXE
+24150 INFO: Copying 0 resources to EXE
+24150 INFO: Embedding manifest in EXE
+24160 INFO: Appending PKG archive to EXE
+24181 INFO: Fixing EXE headers
+24350 INFO: Building EXE from EXE-00.toc completed successfully.
+24357 INFO: Build complete! The results are available in: D:\个人资料\项目\token看板\dist

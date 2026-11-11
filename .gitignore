@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 打包产物
+build/
+dist/
+*.spec.bak
+
+# 本地诊断产物
+_diag/
+tools/_out.txt
+tools/_mini.txt
+
+# 构建日志
+*.log
+
+# 编辑器
+.vscode/
+.idea/
